@@ -1,0 +1,16 @@
+[project]
+name = "landtable"
+version = "0.0.1"
+requires-python = ">=3.12"
+dependencies = [
+    "asyncpg~=0.30.0"
+]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+reportMissingModuleSource = false
+reportUnusedImport = true
+
+[tool.hatch.envs.default]
+path = "./.venv/"
