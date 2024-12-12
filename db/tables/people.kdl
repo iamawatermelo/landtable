@@ -1,0 +1,54 @@
+table "people" {
+    version 1
+    
+    replicas {
+        // reference a database from landtable.kdl
+        // (two tables with different primaries cannot be joined on,
+        // so don't do that)
+        primary "postgres"
+        
+        // or, specify some overrides
+        secondary "postgres_backup" {
+            table "not_people"
+        }
+        
+        // or, define a completely new data source
+        secondary {
+            type "airtable"
+            name "airtable"
+            credential_provider "vault+http://localhost:8200/"
+            table "people"
+        }
+    }
+    
+    fields {
+        // specify values as attributes...
+        field "first_name" type="short_text"
+        
+        // ... or nested nodes
+        field "last_name" {
+            type "short_text"
+            
+            // only replicate this field to certain secondary replicas
+            // (you can't not replicate to the primary)
+            secondary_replicas "postgres_backup" // ...
+            
+            // change the column on one specific replica
+            rewrite "postgres" {
+                column "name"
+            }
+        }
+        
+        field "email" type="email"
+        
+        // fuck it, nested nodes _and_ attributes even
+        field "frumbicated_status" type="enum" {
+            values "florp" "glorp" "gloop" "gleep"
+        }
+    }
+    
+    views {
+        // good old Airta-I mean, Landtable formulae
+        floorped_people "{frumbicated_status} = \"florp\""
+    }
+}

@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "table": "people",
+  "lt_name": "people",
+  "lt_id": "ltb:53b674e778a54fb2b1ed2db322792112",
+  "created_time_field": "created_at",
+  "id_field": "id",
+  "exposed_fields": [
+    {
+      "db_name": "first_name",
+      "lt_name": "first_name",
+      "lt_id": "ltb:4a7e90e113944e368e39f5b4a9a23ae3",
+      "type": "short_text"
+    },
+    {
+      "db_name": "last_name",
+      "lt_name": "last_name",
+      "lt_id": "ltb:ed968689b1d1de83940f0f4c1ef246b5",
+      "type": "short_text"
+    },
+    {
+      "db_name": "email",
+      "lt_name": "email",
+      "lt_id": "ltb:0a3942f22be8d0c5dd94b53d61071c0c",
+      "type": "short_text"
+    },
+    {
+      "db_name": "preexisting_user",
+      "lt_name": "preexisting_user",
+      "lt_id": "ltb:b9c65562a4868153eb5cd7001777317b",
+      "type": "boolean"
+    },
+    {
+      "db_name": "date_of_birth",
+      "lt_name": "date_of_birth",
+      "lt_id": "76c9b0eebe7a09a1d5bdb45af9917692",
+      "type": "datetime"
+    }
+  ]
+}

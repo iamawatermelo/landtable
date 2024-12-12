@@ -1,0 +1,6 @@
+[landtable]
+version = 1
+
+[workspace]
+name = "highseas"
+table_directory = "./tables/"

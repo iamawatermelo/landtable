@@ -1,4 +1,0 @@
-[landtable.state]
-type = "etcd3"
-url = "localhost"
-folder = "landtable"

@@ -1,0 +1,9 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+-   repo: local
+    hooks:
+    -   id: reorder-python-imports
+        name: "reorder python imports"
+        entry: './fmt.sh'
+        language: script

@@ -3,8 +3,16 @@ name = "landtable"
 version = "0.0.1"
 requires-python = ">=3.12"
 dependencies = [
-    "asyncpg~=0.30.0"
+    "asyncpg~=0.30.0",
+    "cuddle~=1.0.6",
+    "aetcd~=1.0.0a4",
+    "pydantic~=2.10.3",
+    "uvicorn~=0.32.1",
+    "fastapi~=0.115.6"
 ]
+
+[tool.setuptools]
+py-modules = []
 
 [tool.pyright]
 venvPath = "."

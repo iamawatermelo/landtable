@@ -1,6 +1,7 @@
-.venv/
 venv/
-*.egg-info
 dist/
+*.egg-info
 *.etcd
 *.pyc
+__pycache__/
+.*/
