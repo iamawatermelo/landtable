@@ -278,7 +278,7 @@ class Variable(ASTNode):
             self.resolved_type = typ
             return typ
 
-        raise FormulaTypeException(f"variable {self.name} does not exist")
+        raise FormulaTypeException(message=f"variable {self.name} does not exist")
 
     def output(self, indent: int = 0) -> None:
         print(" " * indent + f'Variable("{self.name}") -> {self.resolved_type}')
@@ -302,7 +302,7 @@ class FunctionCall(ASTNode):
             self.resolved_type = typ
             return typ
 
-        raise FormulaTypeException(f"function {self.name} does not exist")
+        raise FormulaTypeException(message=f"function {self.name} does not exist")
 
     def output(self, indent: int = 0) -> None:
         print(" " * indent + f'FunctionCall("{self.name}"')

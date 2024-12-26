@@ -1,4 +1,4 @@
-from typing import Callable
+from collections.abc import Callable
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -40,7 +40,9 @@ def implementation(name: str):
 
 def cast(self: FunctionCall, args: List[ASTType], expected_types: List[ASTType]):
     if len(args) != len(expected_types):
-        raise FormulaTypeException(f"{self.name} expected 0 arguments, got {len(args)}")
+        raise FormulaTypeException(
+            message=f"{self.name} expected 0 arguments, got {len(args)}"
+        )
 
     new_nodes = []
 
@@ -95,7 +97,7 @@ def datetime_diff_implementation(
 ):
     if type(unit) is not String:
         raise FormulaTypeException(
-            "DATETIME_DIFF only supports literals as a third argument"
+            message="DATETIME_DIFF only supports literals as a third argument"
         )
 
     if unit.value not in (
@@ -116,7 +118,7 @@ def datetime_diff_implementation(
         "Q",
         "y",
     ):
-        raise FormulaTypeException(f"invalid unit {unit.value}")
+        raise FormulaTypeException(message=f"invalid unit {unit.value}")
 
     return f"EXTRACT({unit.value} FROM AGE({recurse(first)}, {recurse(second)}))"
 

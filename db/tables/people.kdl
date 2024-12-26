@@ -13,7 +13,7 @@ table "people" {
         }
         
         // or, define a completely new data source
-        secondary {
+        secondary "airtable" {
             type "airtable"
             name "airtable"
             credential_provider "vault+http://localhost:8200/"

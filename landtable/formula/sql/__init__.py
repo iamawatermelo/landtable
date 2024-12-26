@@ -8,7 +8,6 @@ Turn a Landtable formula into an SQL statement suitable for use with SELECT.
 # license version 1.0.1. See the LICENSE.md for more information.
 from typing import Any
 from typing import List
-from typing import Tuple
 
 from landtable.formula.exceptions import FormulaTypeException
 from landtable.formula.formula import Formula
@@ -26,7 +25,7 @@ from landtable.formula.parse import Variable
 from landtable.formula.sql.functions import SQL_FUNCTION_IMPLS
 
 
-def to_sql(formula: Formula, env: ASTTypeEnvironment) -> Tuple[str, List[Any]]:
+def to_sql(formula: Formula, env: ASTTypeEnvironment, values: List[Any]) -> str:
     """
     Parse a formula into an SQL statement suitable for use with SELECT.
 
@@ -36,10 +35,8 @@ def to_sql(formula: Formula, env: ASTTypeEnvironment) -> Tuple[str, List[Any]]:
     typ = formula.ast.resolve_type(env)
     if type(typ) is not ASTConcreteType:
         raise FormulaTypeException(
-            f"only formulae returning concrete types, like number or string, are supported (got {typ})"
+            message=f"only formulae returning concrete types, like number or string, are supported (got {typ})"
         )
-
-    values: List[Any] = list()
 
     def recurse(node: ASTNode):
         if type(node) is Cast:
@@ -53,7 +50,9 @@ def to_sql(formula: Formula, env: ASTTypeEnvironment) -> Tuple[str, List[Any]]:
                 case ASTConcreteType.DATETIME:
                     return f"cast({recurse(node.inner)} as timestamp)"
                 case _:
-                    raise FormulaTypeException(f"unsupported cast to {node.type}")
+                    raise FormulaTypeException(
+                        message=f"unsupported cast to {node.type}"
+                    )
         elif type(node) is BinOp:
             token_map = {
                 TokenType.MUL: "*",
@@ -70,13 +69,13 @@ def to_sql(formula: Formula, env: ASTTypeEnvironment) -> Tuple[str, List[Any]]:
             if op := token_map.get(node.op):
                 return f"({recurse(node.left)} {op} {recurse(node.right)})"
 
-            raise FormulaTypeException(f"unsupported binop {node.op}")
+            raise FormulaTypeException(message=f"unsupported binop {node.op}")
         elif type(node) is UnOp:
             match node.op:
                 case TokenType.MINUS:
                     return f"(-{recurse(node.right)})"
                 case _:
-                    raise FormulaTypeException(f"unsupported unop {node.op}")
+                    raise FormulaTypeException(message=f"unsupported unop {node.op}")
         elif type(node) is Number:
             values.append(node.value)
             return f"${len(values)}"
@@ -94,21 +93,23 @@ def to_sql(formula: Formula, env: ASTTypeEnvironment) -> Tuple[str, List[Any]]:
 
             if fn_impl is None:
                 raise FormulaTypeException(
-                    f"internal error: no function implementation associated with {node.name}"
+                    message=f"internal error: no function implementation associated with {node.name}"
                 )
 
             return fn_impl(env, recurse, *node.args)
         else:
-            raise FormulaTypeException(f"unsupported node type {node}")
+            raise FormulaTypeException(message=f"unsupported node type {node}")
 
     expr = recurse(formula.ast)
 
     match typ:
         case ASTConcreteType.NUMBER:
-            return f"{expr} <> 0", values
+            return f"{expr} <> 0"
         case ASTConcreteType.STRING:
-            return f'{expr} <> ""', values
+            return f'{expr} <> ""'
         case ASTConcreteType.BOOLEAN:
-            return expr, values
+            return expr
         case _:
-            raise FormulaTypeException(f"don't know how to handle return type {typ}")
+            raise FormulaTypeException(
+                message=f"don't know how to handle return type {typ}"
+            )

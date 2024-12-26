@@ -16,26 +16,19 @@ handling hundreds of thousands of operations per second is not a goal.
 
 ## Get started
 
-Landtable requires an etcd cluster to get started.
-You may also consider deploying Vault to keep your secrets.
-
-```
-landtable serve --config=landtable.kdl
-```
-
-## Security
-
-### etcd
-
-Anyone with write access to Landtable's etcd keys has full control over your
-databases. Be careful!
-
-To use authentication with etcd:
 TODO
 
-### Vault
+## Licensing
 
-TODO
+Landtable is not open source software. Landtable is licensed under the
+Polyform Perimeter license.
+
+## Contributors
+
+Thank you to:
+- [Captainexpo-1](https://github.com/Captainexpo-1) for writing
+  [an initial version of the Landtable formula parser](https://github.com/Captainexpo-1/Formula-Parser)
+  (and agreeing to license the software under Landtable's license)
 
 ## Internals
 
@@ -61,26 +54,47 @@ Do not rely on there being one.
   - 0b10100000
   - last 7 bytes of decoded identifier (pad with zero bytes if needed)
 
-## Licensing
+### Journey of a request through Landtable
 
-Landtable is not open-source software. Landtable is licensed under the Polyform
-Perimeter license.
+> [!NOTE]
+> There are details not shown in the below diagram.
+> It only aims to provide a high-level overview of how a request travels through
+> Landtable.
 
-As a non-legally-binding summary, you may:
-- self-host Landtable
-- make changes to Landtable for your own purposes
+```mermaid
+sequenceDiagram
+    participant app as App
+    participant proxy as Landtable Proxy
+    participant worker as Landtable Worker
+    participant etcd
+    participant database as Database
+    participant database2 as Secondary Database
+    
+    app->>+proxy: Put record (name#colon; "Sarah", verified#colon; false) into table ltb#colon;...
+    proxy->>+etcd: Information for table "ltb#colon;..."?
+    etcd->>-proxy: Primary replica ..., secondary replicas ..., automation triggers ...
+    
+    loop for primary and each secondary replica
+        proxy->>+database: INSERT INTO ... VALUES ("Sarah", false)
+        database->>-proxy: OK
+    end
 
-However, you may not:
-- fork Landtable to start a similar project
-- provide Landtable as a service
+    proxy->>-app: Ok, new record is lrw#colon;...
+    
+    opt has automation linked
+        proxy->>+worker: Run automation, new record ...
+        worker->>+etcd: Automation information?
+        etcd->>-worker: On new record, ...
+        worker->>-worker: Run automation steps
+    end
 
-You must include this required notice in any copies of the software:
+    opt has delayed secondary replicas
+        proxy->>+worker: Write to delayed secondaries (list of batched writes)
 
-> Required Notice: &copy; 2024 the Landtable authors - https://github.com/iamawatermelo/landtable
-
-## Contributors
-
-Thank you to:
-- [Captainexpo-1](https://github.com/Captainexpo-1) for writing
-  [an initial version of the Landtable formula parser](https://github.com/Captainexpo-1/Formula-Parser)
-  (and agreeing to license the software under Landtable's license)
+        loop for each delayed secondary replica
+            worker->>+database2: INSERT INTO ... VALUES ("Sarah", false)
+            database2->>-worker: OK
+            deactivate worker
+        end
+    end
+```

@@ -8,8 +8,12 @@ dependencies = [
     "aetcd~=1.0.0a4",
     "pydantic~=2.10.3",
     "uvicorn~=0.32.1",
-    "fastapi~=0.115.6"
+    "fastapi~=0.115.6",
+    "typer-slim~=0.15.1"
 ]
+
+[project.entry-points."landtable.backends"]
+postgres = "landtable.backends.postgres_backend:PostgresBackend"
 
 [tool.setuptools]
 py-modules = []
