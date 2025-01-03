@@ -1,7 +1,6 @@
 {
   "version": 1,
-  "type": "postgresql",
-  "url": "postgres://localhost:5432",
-  "lt_name": "High Seas",
-  "lt_id": "lwk:6eddc0e97fc67d6a74fc70c25f932a77"
+  "primary_replica": "ldb:76fc69a773b04da77cd792faac2a5531",
+  "name": "High Seas",
+  "id": "lwk:eeaf52e770ed41f37e31a8ea738d46db"
 }

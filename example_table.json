@@ -1,40 +1,35 @@
 {
   "version": 1,
-  "table": "people",
-  "lt_name": "people",
-  "lt_id": "ltb:53b674e778a54fb2b1ed2db322792112",
-  "created_time_field": "created_at",
-  "id_field": "id",
+  "read_only": false,
+  "name": "People",
+  "id": "ltb:743d16834d574a11cd5d4425bf60c223",
   "exposed_fields": [
     {
-      "db_name": "first_name",
-      "lt_name": "first_name",
-      "lt_id": "ltb:4a7e90e113944e368e39f5b4a9a23ae3",
-      "type": "short_text"
+      "name": "Name",
+      "id": "lfd:e0e4b50fc9bd2ed5cf92c181e3e96315",
+      "type": "short_text",
+      "replica_config": {
+        "ldb:76fc69a773b04da77cd792faac2a5531": {
+          "column_name": "first_name"
+        }
+      }
     },
     {
-      "db_name": "last_name",
-      "lt_name": "last_name",
-      "lt_id": "ltb:ed968689b1d1de83940f0f4c1ef246b5",
-      "type": "short_text"
-    },
-    {
-      "db_name": "email",
-      "lt_name": "email",
-      "lt_id": "ltb:0a3942f22be8d0c5dd94b53d61071c0c",
-      "type": "short_text"
-    },
-    {
-      "db_name": "preexisting_user",
-      "lt_name": "preexisting_user",
-      "lt_id": "ltb:b9c65562a4868153eb5cd7001777317b",
-      "type": "boolean"
-    },
-    {
-      "db_name": "date_of_birth",
-      "lt_name": "date_of_birth",
-      "lt_id": "76c9b0eebe7a09a1d5bdb45af9917692",
-      "type": "datetime"
+      "name": "Email",
+      "id": "lfd:189d36ae473af701c30dcbb027976b7e",
+      "type": "email",
+      "replica_config": {
+        "ldb:76fc69a773b04da77cd792faac2a5531": {
+          "column_name": "email"
+        }
+      }
     }
-  ]
+  ],
+  "replica_config": {
+    "ldb:76fc69a773b04da77cd792faac2a5531": {
+      "table_name": "people",
+      "id_column": "id",
+      "created_at_column": "created_at"
+    }
+  }
 }

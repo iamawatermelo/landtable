@@ -6,6 +6,8 @@ Turn a list of Landtable formula tokens into an AST tree.
 # https://github.com/iamawatermelo/landtable
 # This file is part of Landtable and is shared under the Polyform Perimeter
 # license version 1.0.1. See the LICENSE.md for more information.
+from __future__ import annotations
+
 from collections.abc import Callable
 from collections.abc import Generator
 from dataclasses import dataclass

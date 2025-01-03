@@ -2,7 +2,9 @@
 Utilities for handling Landtable identifiers.
 """
 
-from typing import Annotated
+from __future__ import annotations
+
+from typing import Annotated, Self
 from typing import Any
 from typing import cast
 from typing import Literal
@@ -10,7 +12,7 @@ from typing import TypeAlias
 from typing import Union
 from uuid import UUID
 
-from pydantic import AfterValidator
+from pydantic import AfterValidator, GetJsonSchemaHandler
 from pydantic import GetCoreSchemaHandler
 from pydantic import ValidationInfo
 from pydantic_core import core_schema
@@ -36,10 +38,10 @@ class Identifier:
         Parse an identifier from a string, like
         """
 
-        if to_parse[4] != ":":
+        if to_parse[3] != ":":
             raise ValueError("identifier should be delimited with :")
 
-        if len(to_parse) != 20:
+        if len(to_parse) != 36:
             raise ValueError("identifier has invalid length")
 
         return cls(cast(IdentifierNamespace, to_parse[:3]), UUID(hex=to_parse[4:]))
@@ -55,22 +57,50 @@ class Identifier:
         return identifier
 
     def __repr__(self):
-        return f"{self.namespace}:{self.uuid}"
+        return f"{self.namespace}:{self.uuid.hex}"
 
     def __hash__(self) -> int:
-        return hash(self.uuid)
+        return hash(self.uuid.bytes)
+
+    def __eq__(self, value: object, /) -> bool:
+        return (
+            isinstance(value, Identifier)
+            and self.uuid == value.uuid
+            and self.namespace == value.namespace
+        )
 
     @classmethod
-    def validate(cls, value: str, info: ValidationInfo):
+    def validate(cls, value: str | Self, info: ValidationInfo):
+        if isinstance(value, Identifier):
+            return value
+
         return cls.parse_from(value)
 
     @classmethod
     def __get_pydantic_core_schema__(
         cls, source_type: Any, handler: GetCoreSchemaHandler
     ) -> CoreSchema:
+        def serialize(instance: Any, info: ValidationInfo) -> Any:
+            if info.mode == "json":
+                return repr(instance)
+
+            return instance
+
         return core_schema.with_info_after_validator_function(
-            cls.validate, handler(str)
+            cls.validate,
+            core_schema.union_schema(
+                [handler(str), core_schema.is_instance_schema(cls)]
+            ),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                serialize, info_arg=True
+            ),
         )
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, _core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ):
+        return handler(core_schema.str_schema())
 
 
 def identifier_validator_factory(namespace: IdentifierNamespace):

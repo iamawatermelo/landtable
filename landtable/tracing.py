@@ -6,6 +6,8 @@ Utilities for creating Server-Timing traces.
 # https://github.com/iamawatermelo/landtable
 # This file is part of Landtable and is shared under the Polyform Perimeter
 # license version 1.0.1. See the LICENSE.md for more information.
+from __future__ import annotations
+
 import json
 import time
 from contextlib import asynccontextmanager
@@ -93,15 +95,28 @@ class DummyTracer:
     """
 
     @contextmanager
-    def trace(self, identifier: str, description: str | None = None):
+    def trace(
+        self,
+        identifier: str,
+        description: str | None = None,
+        detail: Dict[str, Any] | None = None,
+    ):
         yield
 
     @asynccontextmanager
-    async def async_trace(self, identifier: str, description: str | None = None):
+    async def async_trace(
+        self,
+        identifier: str,
+        description: str | None = None,
+        detail: Dict[str, Any] | None = None,
+    ):
         yield
 
     def instant_event(self, identifier: str, description: str | None = None):
         pass
+
+
+CONTEXTVAR: ContextVar[DummyTracer] = ContextVar("tracer")  # , default=DummyTracer())
 
 
 class Tracer(DummyTracer):
@@ -120,15 +135,19 @@ class Tracer(DummyTracer):
         self.start = time.perf_counter_ns()
         self.trace_events = list()
         self.end = None
-        self.context_token = ContextVar("tracer").set(self)
+        self.context_token = CONTEXTVAR.set(self)
+        self.instant_events = list()
 
     @staticmethod
     def from_context() -> DummyTracer:
-        return ContextVar("tracer").get()
+        tracer = CONTEXTVAR.get()
+        if not isinstance(tracer, Tracer):
+            logger.debug("Attempted to start trace but no tracer available")
+        return tracer
 
     def finish(self):
         self.end = time.perf_counter_ns()
-        ContextVar("tracer").reset(self.context_token)
+        CONTEXTVAR.reset(self.context_token)
 
     def instant_event(self, identifier: str, description: str | None = None):
         self.instant_events.append(
@@ -140,30 +159,36 @@ class Tracer(DummyTracer):
         )
 
     @contextmanager
-    def trace(self, identifier: str, description: str | None = None):
+    def trace(
+        self,
+        identifier: str,
+        description: str | None = None,
+        detail: Dict[str, Any] | None = None,
+    ):
         start = time.perf_counter_ns()
-        yield
-        self.trace_events.append(
-            TraceEvent(
-                start=start,
-                end=time.perf_counter_ns(),
-                identifier=identifier,
-                description=description,
+
+        try:
+            yield
+        finally:
+            self.trace_events.append(
+                TraceEvent(
+                    start=start,
+                    end=time.perf_counter_ns(),
+                    identifier=identifier,
+                    description=description,
+                    detail=detail,
+                )
             )
-        )
 
     @asynccontextmanager
-    async def async_trace(self, identifier: str, description: str | None = None):
-        start = time.perf_counter_ns()
-        yield
-        self.trace_events.append(
-            TraceEvent(
-                start=start,
-                end=time.perf_counter_ns(),
-                identifier=identifier,
-                description=description,
-            )
-        )
+    async def async_trace(
+        self,
+        identifier: str,
+        description: str | None = None,
+        detail: Dict[str, Any] | None = None,
+    ):
+        with self.trace(identifier, description, detail):
+            yield
 
     def compute_server_timing(self) -> str:
         if self.end is None:
@@ -222,12 +247,5 @@ class Tracer(DummyTracer):
             "otherData": {"version": f"landtable v{__version__}"},
         }
 
-
-@contextmanager
-def debug_tracer(what: str):
-    tracer = Tracer()
-    with tracer.trace(what):
-        yield
-    tracer.finish()
-    trace = json.dumps(tracer.compute_trace())
-    logger.debug(f"trace finished for {what}: {trace}")
+    def compute_json_trace(self) -> str:
+        return json.dumps(self.compute_trace())

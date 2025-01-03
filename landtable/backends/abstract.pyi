@@ -6,16 +6,13 @@ Base classes and models for Landtable backends.
 # https://github.com/iamawatermelo/landtable
 # This file is part of Landtable and is shared under the Polyform Perimeter
 # license version 1.0.1. See the LICENSE.md for more information.
-# This module contains various type errors. I blame Pydantic.
 from __future__ import annotations
 
 from collections.abc import Collection
-from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal, LiteralString
 from typing import ClassVar
 from typing import Dict
-from typing import Literal
 from typing import TypeAlias
 from typing import Union
 
@@ -28,17 +25,15 @@ from landtable.exceptions import LandtableExceptionCode
 from landtable.formula.formula import Formula
 from landtable.identifiers import FieldIdentifier
 from landtable.identifiers import RowIdentifier
-from landtable.state.models import BaseLandtableDatabase
+from landtable.state.models import BaseLandtableDatabase, LandtableField
 from landtable.state.models import LandtableDatabase
 from landtable.state.models import LandtableTable
 from landtable.state.models import LandtableWorkspace
-
 
 @dataclass
 class LandtableTransactionException(BaseAPIException):
     code: int = Field(default=400)
     type: LandtableExceptionCode = Field(default="BAD_REQUEST")
-
 
 class TransactionConsistencyEmulation(Enum):
     STRONG = "STRONG"
@@ -50,7 +45,6 @@ class TransactionConsistencyEmulation(Enum):
     """
     This backend emulates transaction consistency.
     """
-
 
 class TransactionConsistency(Enum):
     STRICT = "STRICT"
@@ -75,45 +69,31 @@ class TransactionConsistency(Enum):
     compatibility layer.
     """
 
-
 class BaseResult:
     """
     Something that can be returned by a transaction.
     This class only exists for typing reasons.
     """
 
-
-class BaseTransactionOperation(BaseModel):
+class BaseTransactionOperation[Result: BaseResult, T: LiteralString](BaseModel):
     """
     A transaction.
     """
 
-    type: str
+    type: T
 
-
-class BaseTarget(BaseModel):
-    limit: int
-    sort: Formula
-    fields: set[str] | None = None
-    failure_strategy: FailureStrategy
-
-
-class FormulaTarget(BaseTarget):
+class FormulaTarget(BaseModel):
     formula: Formula
 
-
-class RowTarget(BaseTarget):
-    id: RowIdentifier
-
+class RowTarget(BaseModel):
+    id: FieldIdentifier
 
 Target: TypeAlias = Union[FormulaTarget, RowTarget]
 
-
 class Row(BaseModel, BaseResult):
     id: RowIdentifier
-    created_at: datetime
+    created_at: str
     contents: Dict[str, Any]
-
 
 class RowResult(BaseModel, BaseResult):
     """
@@ -122,15 +102,19 @@ class RowResult(BaseModel, BaseResult):
 
     rows: list[Row]
 
-
-class FailureStrategy(BaseModel):
+class Fetch[Result: RowResult](BaseTransactionOperation):
     """
-    Determines when an operation targeting multiple rows should fail.
+    Fetch columns.
+    Returns a FetchResult.
     """
 
-    exec_target: int | None = None
-    order_by: Formula
-    fail_type: (
+    type: Literal["fetch"] = "fetch"
+    target: Target
+    limit: int
+    fields: set[str] | None = None
+    execTarget: int | None = None
+    orderBy: Formula
+    failType: (
         Union[
             Literal["eq"],
             Literal["neq"],
@@ -142,77 +126,56 @@ class FailureStrategy(BaseModel):
         | None
     ) = None
 
-
-class Fetch(BaseTransactionOperation):
-    """
-    Fetch columns.
-    Returns a FetchResult.
-    """
-
-    type: Literal["fetch"] = "fetch"
-    target: Target
-    limit: int
-    sort: Formula
-    fields: set[str] | None = None
-    failure_strategy: FailureStrategy
-
-
-class Delete(BaseTransactionOperation):
+class Delete[Result: RowResult](BaseTransactionOperation):
     type: Literal["delete"] = "delete"
     target: Target
     limit: int
-    sort: Formula
     fields: set[str] | None = None
-    failure_strategy: FailureStrategy
+    execTarget: int | None = None
+    orderBy: Formula
+    failType: (
+        Union[
+            Literal["eq"],
+            Literal["neq"],
+            Literal["gt"],
+            Literal["ge"],
+            Literal["lt"],
+            Literal["le"],
+        ]
+        | None
+    ) = None
 
-
-class Create(BaseTransactionOperation):
+class Create[Result: Row](BaseTransactionOperation):
     type: Literal["create"] = "create"
     row: Dict[str, Any]
 
-
-class UpdateByFormula(BaseTransactionOperation):
-    """
-    Update multiple rows and multiple columns at once.
-    """
-
+class UpdateByFormula[Result: RowResult](BaseTransactionOperation):
     type: Literal["updateByFormula"] = "updateByFormula"
     target: Target
     exec_formula: Dict[str, Formula]
 
-
-class Update(BaseTransactionOperation):
+class Update[Result: Row](BaseTransactionOperation):
     type: Literal["update"]
     target: Target
     row: Dict[str, Any]
 
-
 TransactionOperation: TypeAlias = Union[Fetch, Delete, Create, UpdateByFormula, Update]
-
 
 class LandtableTransaction(BaseModel):
     ops: list[TransactionOperation]
     use_id: bool = True
 
     @property
-    def read_only(self):
-        for op in self.ops:
-            if op.type != "fetch":
-                return False
-
-        return True
-
+    def read_only(self) -> bool: ...
 
 class BackendInformation(BaseModel):
     transaction_type: TransactionConsistencyEmulation
     config_types: set[str]
 
-
 class ChangesetRow(BaseModel):
     id: RowIdentifier
     updated_at: str
     contents: Dict[str, Any]
-
 
 class DatabaseBackend:
     BACKEND_INFORMATION: ClassVar[BackendInformation]
@@ -222,14 +185,10 @@ class DatabaseBackend:
         Initialise this database backend.
         """
 
-        pass
-
     async def shutdown(self):
         """
         Perform shutdown tasks for this database backend.
         """
-
-        pass
 
     async def exec_transaction(
         self,
@@ -245,29 +204,18 @@ class DatabaseBackend:
         not been applied.
         """
 
-        raise NotImplementedError
-
-    async def exec_one(
+    async def exec_one[T: BaseResult](
         self,
-        op: BaseTransactionOperation,
+        op: BaseTransactionOperation[T, LiteralString],
         table: LandtableTable,
         config: LandtableDatabase,
         *,
         consistency: TransactionConsistency = TransactionConsistency.STRICT,
         use_id: bool = False,
-    ):
+    ) -> T:
         """
         Execute one operation.
         """
-
-        [result] = await self.exec_transaction(
-            LandtableTransaction(ops=[op], use_id=use_id),
-            table,
-            config,
-            consistency=consistency,
-        )
-
-        return result
 
     async def batch_update_row(
         self,
@@ -279,5 +227,3 @@ class DatabaseBackend:
         """
         Overwrite or create some rows.
         """
-
-        raise NotImplementedError

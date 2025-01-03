@@ -6,6 +6,8 @@ Tokenize Landtable formulae.
 # https://github.com/iamawatermelo/landtable
 # This file is part of Landtable and is shared under the Polyform Perimeter
 # license version 1.0.1. See the LICENSE.md for more information.
+from __future__ import annotations
+
 import re
 from enum import auto
 from enum import Enum

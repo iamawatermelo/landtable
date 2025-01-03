@@ -5,17 +5,25 @@ Landtable.
 
 from fastapi import APIRouter
 
+from landtable.api.common import State
+from landtable.api.common import Table
+from landtable.api.common import Workspace
 from landtable.backends.abstract import LandtableTransaction
-from landtable.state.models import LandtableTable
-from landtable.state.models import LandtableWorkspace
+from landtable.backends.abstract import TransactionConsistency
 
 transaction_router = APIRouter()
 
 
 @transaction_router.post("/execute")
 async def execute_transaction(
+    state: State,
     transaction: LandtableTransaction,
-    table: LandtableTable,
-    workspace: LandtableWorkspace,
+    table: Table,
+    workspace: Workspace,
+    consistency: TransactionConsistency,
 ):
-    workspace.primary_replica
+    database, backend = await state.fetch_database(workspace.primary_replica)
+
+    return await backend.exec_transaction(
+        transaction, table, database, consistency=consistency
+    )

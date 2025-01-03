@@ -6,16 +6,15 @@ Landtable API exceptions.
 # https://github.com/iamawatermelo/landtable
 # This file is part of Landtable and is shared under the Polyform Perimeter
 # license version 1.0.1. See the LICENSE.md for more information.
-from dataclasses import dataclass
+from __future__ import annotations
+
 from typing import Any
 from typing import Literal
 from typing import TypeAlias
 from typing import Union
 
-from pydantic import BaseModel
 from pydantic import Field
-
-from landtable.formula.exceptions import FormulaException
+from pydantic.dataclasses import dataclass
 
 
 LandtableExceptionCode: TypeAlias = Union[
@@ -28,18 +27,21 @@ LandtableExceptionCode: TypeAlias = Union[
 ]
 
 
-class BaseAPIException(Exception, BaseModel):
-    code: int
-    type: LandtableExceptionCode
-    message: str
+@dataclass
+class BaseAPIException(Exception):
+    code: int = Field(default=500)
+    type: LandtableExceptionCode = Field(default="INTERNAL_ERROR")
+    message: str = Field(default="Unknown exception")
     detail: Any = Field(default=None)
 
 
+@dataclass
 class APINotFoundException(BaseAPIException):
     code: int = Field(default=404)
     type: LandtableExceptionCode = Field(default="NOT_FOUND")
 
 
+@dataclass
 class APIBadRequestException(BaseAPIException):
     code: int = Field(default=400)
     type: LandtableExceptionCode = Field(default="BAD_REQUEST")

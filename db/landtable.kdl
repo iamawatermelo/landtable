@@ -1,0 +1,7 @@
+workspace "highseas" {
+    version 1
+    
+    name "High Seas"
+    
+    tables import_from="./tables/*.kdl"
+}

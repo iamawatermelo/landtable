@@ -6,23 +6,48 @@ Landtable's internal state, stored in etcd
 # https://github.com/iamawatermelo/landtable
 # This file is part of Landtable and is shared under the Polyform Perimeter
 # license version 1.0.1. See the LICENSE.md for more information.
+from __future__ import annotations
+
+from collections.abc import Collection
+from logging import getLogger
+from typing import Annotated
 from typing import Dict
 from typing import List
 from typing import Literal
+from typing import TYPE_CHECKING
 from typing import TypeAlias
 from typing import Union
 
 import pydantic
 
-import landtable.state as state
 from landtable.formula.parse import ASTConcreteType
 from landtable.identifiers import DatabaseIdentifier
+from landtable.identifiers import FieldIdentifier
 from landtable.identifiers import Identifier
+from landtable.identifiers import TableIdentifier
+from landtable.identifiers import WorkspaceIdentifier
+
+if TYPE_CHECKING:
+    from landtable.state import LandtableState
+else:
+    LandtableState = None
+
+
+logger = getLogger(__name__)
 
 
 class LandtableMeta(pydantic.BaseModel):
-    state: state.LandtableState
-    version: Literal[1] = 1
+    """
+    Configuration for Landtable.
+    """
+
+    state: Annotated[LandtableState, pydantic.SkipValidation]
+    version: Literal[1]
+
+    auth_modules: List[str]
+    """
+    Which authentication modules to use.
+    """
 
 
 class LandtableFieldReplicaConfig(pydantic.BaseModel, frozen=True):
@@ -44,15 +69,12 @@ class LandtableField(pydantic.BaseModel, frozen=True):
     and can have configurable database options.
     """
 
-    state: state.LandtableState
-    version: Literal[1]
-
-    lt_name: str
+    name: str
     """
     What Landtable will call this field.
     """
 
-    lt_id: str
+    id: FieldIdentifier
     """
     An immutable ID for this field (lfd:...).
     """
@@ -89,7 +111,7 @@ class LandtableField(pydantic.BaseModel, frozen=True):
     The type of this field.
     """
 
-    replica_config: Dict[str, LandtableFieldReplicaConfig]
+    replica_config: Dict[DatabaseIdentifier, LandtableFieldReplicaConfig]
 
     def type_to_ast_type(self):
         if typ := {
@@ -98,6 +120,7 @@ class LandtableField(pydantic.BaseModel, frozen=True):
             "long_text": ASTConcreteType.STRING,
             "boolean": ASTConcreteType.BOOLEAN,
             "datetime": ASTConcreteType.DATETIME,
+            "email": ASTConcreteType.STRING,
         }.get(self.type):
             return typ
         else:
@@ -108,10 +131,10 @@ class LandtableField(pydantic.BaseModel, frozen=True):
         Fetch the LandtableFieldReplicaConfig for this replica.
         """
 
-        if config := self.replica_config.get(str(replica)):
+        if config := self.replica_config.get(replica):
             return config
 
-        return LandtableFieldReplicaConfig(column_name=self.lt_name)
+        return LandtableFieldReplicaConfig(column_name=self.name)
 
 
 class LandtableTableReplicaConfig(pydantic.BaseModel):
@@ -149,12 +172,12 @@ class LandtableTable(pydantic.BaseModel):
     Whether this table is read only. Writes to this table will be rejected.
     """
 
-    lt_name: str
+    name: str
     """
     What Landtable will call this table.
     """
 
-    lt_id: str
+    id: TableIdentifier
     """
     An immutable ID for this field.
     """
@@ -167,29 +190,29 @@ class LandtableTable(pydantic.BaseModel):
     a default, Landtable will never be able to write to the database.
     """
 
-    created_time_field: str
-    """
-    The datetime field that represents the created time field.
-    """
-
-    id_field: str
-    """
-    The UUID field that represents the ID.
-    """
-
-    replica_config: Dict[str, LandtableTableReplicaConfig]
+    replica_config: Dict[DatabaseIdentifier, LandtableTableReplicaConfig]
 
     def fetch_replica_config(self, replica: Identifier):
         """
         Fetch the LandtableTableReplicaConfig for this replica.
         """
 
-        if config := self.replica_config.get(str(replica)):
+        if (config := self.replica_config.get(replica)) is not None:
             return config
 
         return LandtableTableReplicaConfig(
-            table_name=self.lt_name, id_column=None, created_at_column=None
+            table_name=self.name, id_column=None, created_at_column=None
         )
+
+    def resolve_columns(self, fields: Collection[str] | None):
+        if fields is None:
+            return self.exposed_fields
+        else:
+            return [
+                field
+                for field in self.exposed_fields
+                if field.name in fields or field.id in fields
+            ]
 
 
 class BaseLandtableDatabase(pydantic.BaseModel):
@@ -202,19 +225,20 @@ class BaseLandtableDatabase(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(extra="allow")
 
-    state: state.LandtableState
+    state: Annotated[LandtableState, pydantic.SkipValidation]
     version: Literal[1] = 1
     id: DatabaseIdentifier
     name: str
+    type: str
 
 
 class LandtablePostgresV0Database(BaseLandtableDatabase):
-    type = "postgres_v0"
+    type: str = "postgres_v0"
     connection_url: str
 
 
 class LandtableAirtableV0Database(BaseLandtableDatabase):
-    type = "airtable_v0"
+    type: str = "airtable_v0"
     api_url: str = "https://api.airtable.com/v0/"
     base_id: str
     table_id: str
@@ -226,7 +250,7 @@ LandtableDatabase: TypeAlias = Union[
 
 
 class LandtableWorkspace(pydantic.BaseModel):
-    state: state.LandtableState
+    state: Annotated[LandtableState, pydantic.SkipValidation]
     version: Literal[1] = 1
 
     primary_replica: DatabaseIdentifier
@@ -234,12 +258,12 @@ class LandtableWorkspace(pydantic.BaseModel):
     The primary replica for this workspace.
     """
 
-    lt_name: str
+    name: str
     """
     What Landtable will call this workspace.
     """
 
-    lt_id: str
+    id: WorkspaceIdentifier
     """
     An immutable ID for this workspace.
     """
@@ -249,4 +273,4 @@ class LandtableWorkspace(pydantic.BaseModel):
         Fetch a table from this workspace. Do not cache the result of this call.
         """
 
-        return await self.state.fetch_table(self.lt_id, table)
+        return await self.state.fetch_table(self.id, table)

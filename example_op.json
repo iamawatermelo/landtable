@@ -1,0 +1,19 @@
+{
+  "ops": [
+    {
+      "type": "fetch",
+      "target": {
+        "id": "lrw:d00d4069f0704fc6a43b1d5bf34956a2"
+      },
+      "limit": 1
+    },
+    {
+      "type": "delete",
+      "target": {
+        "id": "lrw:dddddddddddddddddddddddddddddddd"
+      },
+      "limit": 1
+    }
+  ],
+  "use_ids": false
+}

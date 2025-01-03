@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "id": "ldb:76fc69a773b04da77cd792faac2a5531",
+  "name": "Postgres",
+  "type": "postgres_v0",
+  "connection_url": "postgres://localhost:5432"
+}
