@@ -202,11 +202,10 @@ class LandtableState:
 
         if not (isinstance(workspace, Identifier) or workspace[:4] == "lwk:"):
             # Ensure that the caller can read workspace aliases
-            await (
-                AuthenticationContext.from_context()
-                .evaluate({AccessType.READ}, WorkspaceAliasesResource())
-                .__aenter__()
-            )
+            async with AuthenticationContext.from_context().evaluate(
+                {AccessType.READ}, WorkspaceAliasesResource()
+            ):
+                pass
 
         if (
             entry := self.workspace_cache.get(str(workspace))

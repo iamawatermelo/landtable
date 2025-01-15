@@ -44,22 +44,22 @@ class AccessType(Enum):
     WRITE access does not imply READ access too.
     """
 
-    READ = auto()
+    READ = "read"
     """
     Read from this resource.
     """
 
-    WRITE = auto()
+    WRITE = "write"
     """
     Write something to this resource.
     """
 
-    MODIFY = auto()
+    MODIFY = "modify"
     """
     Modify this resource.
     """
 
-    DELETE = auto()
+    DELETE = "delete"
     """
     Delete this resource.
     """
@@ -125,8 +125,7 @@ class AuthenticationContext(Protocol):
         """
         Answer the question: can this context perform [actions] on [identifier]?
         On success, returns an AsyncContextManager.
-        On failure, throw a subclass of Unauthorized if the user is
-        unauthorized and Exception if something wrong has happened.
+        On failure, throws an exception.
         """
 
         try:
@@ -136,7 +135,7 @@ class AuthenticationContext(Protocol):
             pass
 
         raise APIForbidden(
-            message=f"current caller identity cannot perform {actions} on {on.resource_name}"
+            message=f"current caller identity cannot perform {', '.join(x.value for x in actions)} on {on.resource_name}"
         )
 
     def _evaluate(self, actions: set[AccessType], on: Resource) -> AsyncContextManager:
