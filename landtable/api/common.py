@@ -28,7 +28,7 @@ async def authenticate(request: Request, state: State):
         plugin = state.auth.plugins.get(name)
         assert plugin, f"Auth plugin {name} doesn't exist"
 
-        maybe_context = plugin.create_context(request)
+        maybe_context = await plugin.create_context(request)
 
         if maybe_context is not None:
             return maybe_context
@@ -47,14 +47,18 @@ State: TypeAlias = Annotated[LandtableState, Depends(state)]
 
 
 async def workspace(request: Request, workspace_id: str, auth: Authentication):
-    return await request.app.state.landtable.fetch_workspace(workspace_id)
+    with auth.enter():
+        return await request.app.state.landtable.fetch_workspace(workspace_id)
 
 
 Workspace: TypeAlias = Annotated[LandtableWorkspace, Depends(workspace)]
 
 
-async def table(request: Request, workspace: Workspace, table_id: str):
-    return await workspace.fetch_table(table_id)
+async def table(
+    request: Request, workspace: Workspace, table_id: str, auth: Authentication
+):
+    with auth.enter():
+        return await workspace.fetch_table(table_id)
 
 
 Table: TypeAlias = Annotated[LandtableTable, Depends(table)]

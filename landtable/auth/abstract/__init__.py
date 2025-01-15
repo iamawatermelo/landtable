@@ -8,7 +8,7 @@ Authentication module protocols.
 # license version 1.0.1. See the LICENSE.md for more information.
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from typing import AsyncContextManager
 from typing import Callable
 from typing import Protocol
+from landtable.exceptions import APIForbidden
 
 from starlette.requests import Request
 from starlette.responses import Response
@@ -83,6 +84,13 @@ class Resource:
         raise NotImplementedError
 
 
+class ContextFailedException(Exception):
+    """
+    Thrown when an authentication context successfully validated that the
+    current context is not able to do this action.
+    """
+
+
 class AuthenticationContext(Protocol):
     """
     An AuthenticationContext represents a user's request.
@@ -112,15 +120,32 @@ class AuthenticationContext(Protocol):
 
         return cls.context.get()
 
-    def evaluate(self, actions: set[AccessType], on: Resource) -> AsyncContextManager:
+    @asynccontextmanager
+    async def evaluate(self, actions: set[AccessType], on: Resource):
         """
         Answer the question: can this context perform [actions] on [identifier]?
-        On success, returns a ContextManager.
-        On failure, throw a subclass of BaseAPIException if the user is
+        On success, returns an AsyncContextManager.
+        On failure, throw a subclass of Unauthorized if the user is
         unauthorized and Exception if something wrong has happened.
         """
 
-        ...
+        try:
+            async with self._evaluate(actions, on):
+                yield
+        except ContextFailedException:
+            pass
+
+        raise APIForbidden(
+            message=f"current caller identity cannot perform {actions} on {on.resource_name}"
+        )
+
+    def _evaluate(self, actions: set[AccessType], on: Resource) -> AsyncContextManager:
+        """
+        Inner function for the evaluate function. Throw a ContextFailedException
+        when the user may not perform this set of actions on that resource.
+        """
+
+        raise ContextFailedException
 
 
 class AuthenticationPlugin[C: AuthenticationContext](Protocol):

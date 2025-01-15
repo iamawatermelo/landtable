@@ -15,9 +15,9 @@ from starlette.requests import Request
 from landtable.auth import AuthenticationPlugin
 from landtable.auth.abstract import AccessType
 from landtable.auth.abstract import AuthenticationContext
+from landtable.auth.abstract import ContextFailedException
 from landtable.auth.abstract import Identity
 from landtable.auth.abstract import Resource
-from landtable.exceptions import APIForbidden
 
 
 class RejectAuthenticationContext(AuthenticationContext):
@@ -28,12 +28,12 @@ class RejectAuthenticationContext(AuthenticationContext):
     identity: Identity
 
     @asynccontextmanager
-    async def evaluate(self, actions: set[AccessType], on: Resource):
+    async def _evaluate(self, actions: set[AccessType], on: Resource):
         """
         Reject all requests.
         """
 
-        raise APIForbidden()
+        raise ContextFailedException
         yield
 
 
