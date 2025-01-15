@@ -1,6 +1,5 @@
 """
-UNSAFE Landtable authentication module: simply accepts all requests.
-Do not use this.
+Reject all requests.
 """
 
 # Copyright 2024 the Landtable authors
@@ -18,9 +17,10 @@ from landtable.auth.abstract import AccessType
 from landtable.auth.abstract import AuthenticationContext
 from landtable.auth.abstract import Identity
 from landtable.auth.abstract import Resource
+from landtable.exceptions import APIForbidden
 
 
-class UnsafeAuthenticationContext(AuthenticationContext):
+class RejectAuthenticationContext(AuthenticationContext):
     """
     An AuthenticationContext represents a user's request.
     """
@@ -30,23 +30,23 @@ class UnsafeAuthenticationContext(AuthenticationContext):
     @asynccontextmanager
     async def evaluate(self, actions: set[AccessType], on: Resource):
         """
-        Accept all requests.
+        Reject all requests.
         """
 
+        raise APIForbidden()
         yield
 
 
-class UnsafeAuthenticationPlugin(AuthenticationPlugin):
+class RejectAuthenticationPlugin(AuthenticationPlugin):
     """
-    This UNSAFE authentication plugin simply allows all requests.
-    Do not use this.
+    Reject all requests.
     """
 
-    async def create_context(self, request: Request) -> UnsafeAuthenticationContext:
+    async def create_context(self, request: Request) -> RejectAuthenticationContext:
         """
         Attempt to authenticate this request.
 
         On success, return an AuthenticationContext object.
         """
 
-        return UnsafeAuthenticationContext()
+        return RejectAuthenticationContext()

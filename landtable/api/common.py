@@ -4,19 +4,39 @@ Common parameters that the API uses.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from logging import getLogger
 from typing import Annotated
-from typing import Any
 from typing import TypeAlias
 
 from fastapi import Depends
-from fastapi import Response
-from pydantic import BaseModel
 from starlette.requests import Request
 
+from landtable.auth.abstract import AuthenticationContext
+from landtable.exceptions import APIUnauthorized
 from landtable.state import LandtableState
 from landtable.state.models import LandtableTable
 from landtable.state.models import LandtableWorkspace
+
+logger = getLogger(__name__)
+
+
+async def authenticate(request: Request, state: State):
+    meta = await state.fetch_meta()
+
+    for name, _ in meta.auth_plugins.items():
+        logger.debug(f"Trying {name} on {request}")
+        plugin = state.auth.plugins.get(name)
+        assert plugin, f"Auth plugin {name} doesn't exist"
+
+        maybe_context = plugin.create_context(request)
+
+        if maybe_context is not None:
+            return maybe_context
+
+    raise APIUnauthorized()
+
+
+Authentication: TypeAlias = Annotated[AuthenticationContext, Depends(authenticate)]
 
 
 def state(request: Request):
@@ -26,7 +46,7 @@ def state(request: Request):
 State: TypeAlias = Annotated[LandtableState, Depends(state)]
 
 
-async def workspace(request: Request, workspace_id: str):
+async def workspace(request: Request, workspace_id: str, auth: Authentication):
     return await request.app.state.landtable.fetch_workspace(workspace_id)
 
 

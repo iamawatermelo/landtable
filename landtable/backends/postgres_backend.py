@@ -1,3 +1,19 @@
+"""
+A Landtable database backend that uses Postgres.
+
+SECURITY:
+    - All values passed in by an API call are properly escaped using query
+      arguments. No data that has been taken from an API call will be
+      concatenated into an SQL statement.
+
+    - Column names taken from the replica's configuration aren't sanitized.
+      It is expected that you have taken steps to secure your etcd cluster.
+"""
+
+# Copyright 2024 the Landtable authors
+# https://github.com/iamawatermelo/landtable
+# This file is part of Landtable and is shared under the Polyform Perimeter
+# license version 1.0.1. See the LICENSE.md for more information.
 from __future__ import annotations
 
 import asyncio
@@ -24,17 +40,24 @@ from landtable.backends.abstract import RowTarget
 from landtable.backends.abstract import Target
 from landtable.backends.abstract import TransactionConsistency
 from landtable.backends.abstract import TransactionConsistencyEmulation
+from landtable.backends.abstract import TransactionOperation
+from landtable.backends.abstract import Update
+from landtable.backends.abstract import UpdateByFormula
 from landtable.exceptions import APIBadRequestException
+from landtable.formula.formula import Formula
+from landtable.formula.parse import ASTConcreteType
 from landtable.formula.parse import ASTTypeEnvironment
-from landtable.formula.sql import to_sql
+from landtable.formula.sql import to_sql_expr
+from landtable.formula.sql import to_sql_predicate
 from landtable.formula.sql.functions import SQL_FUNCTIONS
+from landtable.identifiers import DatabaseIdentifier
 from landtable.identifiers import Identifier
 from landtable.state.models import BaseLandtableDatabase
 from landtable.state.models import LandtableDatabase
-from landtable.state.models import LandtableField
 from landtable.state.models import LandtablePostgresV0Database
 from landtable.state.models import LandtableTable
 from landtable.tracing import Tracer
+from landtable.tracing import wrap_trace
 
 if TYPE_CHECKING:
     # from package asyncpg-stubs
@@ -47,14 +70,66 @@ else:
 logger = getLogger(__name__)
 
 
+@wrap_trace("formula", "Create SQL predicate")
 def parse_target(target: Target, environment: ASTTypeEnvironment, values: list[Any]):
     if type(target) is RowTarget:
         values.append(target.id.uuid)
         return f"{environment.id_field} = ${len(values)}"
     elif type(target) is FormulaTarget:
-        return to_sql(target.formula, environment, values)
+        return to_sql_predicate(target.formula, environment, values)
     else:
         raise NotImplementedError(f"got unexpected target {target}")
+
+
+@wrap_trace("formula", "Create SELECT statement")
+async def create_select_statement(
+    target: Target,
+    columns_to_select: set[str],
+    replica: DatabaseIdentifier,
+    table: LandtableTable,
+    values: list,
+    limit: int | None = None,
+    sort: Formula | None = None,
+):
+    replica_config = table.fetch_replica_config(replica)
+    assert replica_config.id_column is not None
+    assert replica_config.created_at_column is not None
+
+    env = ASTTypeEnvironment(
+        variables={
+            field.fetch_replica_config(replica).column_name: field.type_to_ast_type()
+            for field in table.exposed_fields
+        },
+        functions=SQL_FUNCTIONS,
+        id_field=replica_config.id_column,
+        created_time_field=replica_config.created_at_column,
+    )
+    predicate = parse_target(target, env, values)
+    # predicate is something like person = $1
+
+    column_str = ",".join(columns_to_select)
+    statement = (
+        f"SELECT {column_str} FROM {replica_config.table_name}WHERE {predicate} "
+    )
+
+    if limit is not None:
+        if limit <= 0:
+            raise APIBadRequestException(
+                message=f"limit must be above zero (got {limit})"
+            )
+
+        statement += f"LIMIT {limit}"
+
+    if sort is not None:
+        sort_predicate, type = to_sql_expr(sort, env, values)
+        if type != ASTConcreteType.NUMBER:
+            raise APIBadRequestException(
+                message=f"sort formula expression should return a number, not {type}"
+            )
+
+        statement += f"ORDER BY {sort_predicate}"
+
+    return statement
 
 
 class PostgresBackend(DatabaseBackend):
@@ -78,96 +153,103 @@ class PostgresBackend(DatabaseBackend):
 
         return new_pool
 
+    async def _exec_rudop(
+        self,
+        op: Fetch | Update | UpdateByFormula | Delete,
+        transaction: LandtableTransaction,
+        table: LandtableTable,
+        config: LandtableDatabase,
+        connection: PoolConnectionProxy[Record],
+    ):
+        """
+        Execute a fetch / update / delete operation.
+        """
+
+        replica_config = table.fetch_replica_config(table.id)
+        assert replica_config.id_column is not None
+        assert replica_config.created_at_column is not None
+
+        columns = set()
+
+        fields = table.resolve_fields(op.fields)
+
+        for field in fields:
+            columns.add(field.fetch_replica_config(table.id).column_name)
+
+        columns.add(replica_config.id_column)
+        columns.add(replica_config.created_at_column)
+
+        values = list()
+        query = await create_select_statement(
+            op.target,
+            # Add some more columns to join on if we're not just fetching
+            columns if isinstance(op, Fetch) else columns | {"ctid", "tableoid"},
+            table.id,
+            table,
+            values,
+            op.limit,
+            op.sort,
+        )
+
+        if isinstance(op, Update):
+            if len(op.row) == 0:
+                return RowResult(rows=[])
+
+            field_map = table.create_field_map(op.row.keys())
+
+            set_parts = list()
+
+            for name, value in op.row.items():
+                values.append(value)
+                set_parts.append(f"{field_map[name]} = ${len(values)}")
+
+            return_part = ",".join(
+                f"old.{column} as {column}"
+                for column in columns
+                | {replica_config.id_column, replica_config.created_at_column}
+            )
+
+            query = (
+                f"UPDATE {replica_config.table_name} AS new "
+                f"SET {','.join(set_parts)} "
+                f"FROM ({query}) AS old "
+                "WHERE (new.ctid, new.tableoid) = (old.ctid, old.tableoid) "
+                f"RETURNING {return_part}"
+            )
+
+        with Tracer.from_context().trace("db", "execute query", {"query": query}):
+            result = await connection.fetch(query, *values, timeout=1)
+
+        use_id = transaction.use_id
+
+        return RowResult(
+            rows=[
+                Row(
+                    id=Identifier("lrw", row.get(replica_config.id_column)),
+                    created_at=row.get(replica_config.created_at_column),
+                    contents={field.id if use_id else field.name for field in fields},
+                )
+                for row in result
+            ]
+        )
+
     async def _exec_op(
         self,
         op: BaseTransactionOperation,
         transaction: LandtableTransaction,
         table: LandtableTable,
         config: LandtableDatabase,
-        consistency: TransactionConsistency,
         connection: PoolConnectionProxy[Record],
     ):
-        logger.debug(f"exec op {op}")
+        """
+        Execute an operation.
+        """
+        op = cast(TransactionOperation, op)
 
-        if type(op) is Fetch or type(op) is Delete:
-            if op.execTarget is not None and op.failType is None:
-                raise APIBadRequestException(
-                    message="execTarget specified but no operator to compare with"
-                )
+        if type(op) in (Fetch, Update, Delete):
+            return self._exec_rudop(op, transaction, table, config, connection)
 
-            with Tracer.from_context().trace("parse", f"parse {type(op).__qualname__}"):
-                replica_config = table.fetch_replica_config(config.id)
-
-                if (
-                    replica_config.id_column is None
-                    or replica_config.created_at_column is None
-                ):
-                    raise Exception(
-                        f"Invalid backend configuration for table {config.id}"
-                    )
-
-                values = list()
-                predicate = parse_target(
-                    op.target,
-                    ASTTypeEnvironment(
-                        variables={
-                            field.fetch_replica_config(
-                                config.id
-                            ).column_name: field.type_to_ast_type()
-                            for field in table.exposed_fields
-                        },
-                        functions=SQL_FUNCTIONS,
-                        id_field=replica_config.id_column,
-                        created_time_field=replica_config.created_at_column,
-                    ),
-                    values,
-                )
-                db_table = replica_config.table_name
-                columns = table.resolve_columns(op.fields)
-                db_columns = set(
-                    x.fetch_replica_config(config.id).column_name for x in columns
-                )
-                db_columns.add(replica_config.id_column)
-                db_columns.add(replica_config.created_at_column)
-                db_column_str = ",".join(db_columns)
-
-                if type(op) is Delete:
-                    db_column_str = "ctid"
-
-                query = f"SELECT {db_column_str} FROM {db_table} WHERE {predicate} LIMIT {op.limit}"
-
-                if type(op) is Delete:
-                    db_column_str = ",".join(db_columns)
-                    query = f"DELETE FROM {db_table} WHERE ctid = ANY(ARRAY({query})) RETURNING {db_column_str}"
-
-            with Tracer.from_context().trace(
-                "db", f"execute {query}", {"values": repr(values)}
-            ):
-                result = await connection.fetch(query, *values)
-
-                logger.debug(f"result: {result}")
-
-                return RowResult(
-                    rows=[
-                        Row(
-                            id=Identifier("lrw", record[replica_config.id_column]),
-                            created_at=record[replica_config.created_at_column],
-                            contents={
-                                (
-                                    str(column.id)
-                                    if transaction.use_id
-                                    else column.name
-                                ): record[
-                                    column.fetch_replica_config(config.id).column_name
-                                ]
-                                for column in columns
-                            },
-                        )
-                        for record in result
-                    ]
-                )
-        else:
-            raise NotImplementedError
+        raise NotImplementedError
 
     async def exec_transaction(
         self,
@@ -198,8 +280,6 @@ class PostgresBackend(DatabaseBackend):
         ):
             # TODO: Run multiple in parallel (if that's even possible)
             return [
-                await self._exec_op(
-                    op, transaction, table, config, consistency, connection
-                )
+                await self._exec_op(op, transaction, table, config, connection)
                 for op in transaction.ops
             ]

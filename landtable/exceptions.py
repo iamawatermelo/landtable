@@ -24,6 +24,7 @@ LandtableExceptionCode: TypeAlias = Union[
     Literal["RATE_LIMITED"],
     Literal["INTERNAL_ERROR"],
     Literal["TEMPORARILY_UNAVAILABLE"],
+    Literal["UNAUTHORIZED"],
 ]
 
 
@@ -45,3 +46,17 @@ class APINotFoundException(BaseAPIException):
 class APIBadRequestException(BaseAPIException):
     code: int = Field(default=400)
     type: LandtableExceptionCode = Field(default="BAD_REQUEST")
+
+
+@dataclass
+class APIUnauthorized(BaseAPIException):
+    code: int = Field(default=401)
+    type: LandtableExceptionCode = Field(default="UNAUTHORIZED")
+    message: str = Field(default="No authentication credentials found")
+
+
+@dataclass
+class APIForbidden(BaseAPIException):
+    code: int = Field(default=403)
+    type: LandtableExceptionCode = Field(default="NOT_ALLOWED")
+    message: str = Field(default="You can't do that")

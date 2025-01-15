@@ -21,8 +21,13 @@ from aetcd import Client
 from aetcd import Event
 
 import landtable.state.models as models
+from landtable.auth import AuthenticationPluginResolver
+from landtable.auth.abstract import AccessType
+from landtable.auth.abstract import AuthenticationContext
+from landtable.auth.abstract.resources import WorkspaceAliasesResource
 from landtable.backends import BackendResolver
 from landtable.backends.abstract import DatabaseBackend
+from landtable.exceptions import APIForbidden
 from landtable.exceptions import APINotFoundException
 from landtable.identifiers import DatabaseIdentifier
 from landtable.identifiers import Identifier
@@ -53,6 +58,7 @@ class LandtableState:
     task_obj: asyncio.Task | None
     cache_expiry_time: int = 10
     resolver: BackendResolver
+    auth: AuthenticationPluginResolver
 
     def __init__(self, url: str) -> None:
         parsed_url = urlparse(url, scheme="etcd", allow_fragments=False)
@@ -67,6 +73,7 @@ class LandtableState:
         self.meta = None
         self.task_obj = None
         self.resolver = BackendResolver()
+        self.auth = AuthenticationPluginResolver()
 
     async def task(self):
         async for event in await self.db.watch_prefix(b"/landtable"):
@@ -97,18 +104,21 @@ class LandtableState:
                 case [b"workspaces", _, b"tables", table_id]:
                     self.table_cache[str(table_id)] = CachedEntry(
                         created_at=time.monotonic(),
-                        inner=models.LandtableTable(**json.loads(event.kv.value)),
+                        inner=models.LandtableTable(
+                            state=self, **json.loads(event.kv.value)
+                        ),
                     )
                 case _:
                     logger.warn(
                         f"Received unknown etcd update event: {event.kv.key.decode()}"
                     )
 
-    async def connect(self):
+    async def connect(self, mount_callback=lambda _name, _app: None):
         with Tracer.from_context().trace("etcd", "etcd connect"):
             await self.db.connect()
 
         await self.resolver.initialise()
+        await self.auth.initialise(self, mount_callback)
 
         self.task_obj = asyncio.create_task(self.task())
 
@@ -156,13 +166,45 @@ class LandtableState:
             resolved_database.type
         )
 
+    async def fetch_meta(self) -> models.LandtableMeta:
+        if (
+            self.meta is not None
+            and time.monotonic() - self.meta.created_at < self.cache_expiry_time
+        ):
+            Tracer.from_context().instant_event("configFetch", "cache hit on meta")
+
+            return self.meta.inner
+
+        with Tracer.from_context().trace("configFetch", "cache miss on meta"):
+            meta_bytes = await self.db.get(b"/landtable/meta")
+
+            if meta_bytes is None:
+                raise Exception("no Landtable meta key")
+
+            resolved_meta = models.LandtableMeta(
+                state=self, **json.loads(meta_bytes.value)
+            )
+
+            cache_entry = CachedEntry(created_at=time.monotonic(), inner=resolved_meta)
+
+            self.meta = cache_entry
+
+        return resolved_meta
+
     async def fetch_workspace(
         self, workspace: str | WorkspaceIdentifier
     ) -> models.LandtableWorkspace:
         """
-        Fetch a workspace. Do not cache the result of this call.
+        Fetch a workspace. Do not cache the result of this call, as it ensures
+        the current context can access this workspace resource.
         Raises an exception if the workspace could not be found.
         """
+
+        if not (isinstance(workspace, Identifier) or workspace[:4] == "lwk:"):
+            # Ensure that the caller can read workspace aliases
+            AuthenticationContext.from_context().evaluate(
+                {AccessType.READ}, WorkspaceAliasesResource()
+            )
 
         if (
             entry := self.workspace_cache.get(str(workspace))
@@ -184,8 +226,8 @@ class LandtableState:
                     )
 
                     if alias is None:
-                        raise APINotFoundException(
-                            message=f"workspace {workspace} does not exist"
+                        raise APIForbidden(
+                            message=f'workspace "{workspace}" does not exist or you do not have permission to access it'
                         )
 
                     workspace = alias.value.decode()
@@ -197,8 +239,8 @@ class LandtableState:
             )
 
             if workspace_bytes is None:
-                raise APINotFoundException(
-                    message=f"workspace {workspace} does not exist"
+                raise APIForbidden(
+                    message=f'workspace "{workspace}" does not exist or you do not have permission to access it'
                 )
 
             resolved_workspace = models.LandtableWorkspace(
@@ -257,7 +299,9 @@ class LandtableState:
                     message=f"table {workspace_id}/{table} does not exist"
                 )
 
-            resolved_table = models.LandtableTable(**json.loads(table_bytes.value))
+            resolved_table = models.LandtableTable(
+                state=self, **json.loads(table_bytes.value)
+            )
 
             cache_entry = CachedEntry(created_at=time.monotonic(), inner=resolved_table)
 

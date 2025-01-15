@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Collection
 from logging import getLogger
 from typing import Annotated
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Literal
@@ -44,9 +45,9 @@ class LandtableMeta(pydantic.BaseModel):
     state: Annotated[LandtableState, pydantic.SkipValidation]
     version: Literal[1]
 
-    auth_modules: List[str]
+    auth_plugins: dict[str, dict[str, Any]]
     """
-    Which authentication modules to use.
+    Which authentication plugins to use.
     """
 
 
@@ -166,6 +167,7 @@ class LandtableTable(pydantic.BaseModel):
     """
 
     version: Literal[1] = 1
+    state: Annotated[LandtableState, pydantic.SkipValidation]
 
     read_only: bool
     """
@@ -204,15 +206,38 @@ class LandtableTable(pydantic.BaseModel):
             table_name=self.name, id_column=None, created_at_column=None
         )
 
-    def resolve_columns(self, fields: Collection[str] | None):
+    def create_field_map(
+        self, fields: Collection[str | FieldIdentifier]
+    ) -> dict[str | FieldIdentifier, LandtableField]:
+        """
+        From a list of either field IDs or field names, create a dict mapping
+        the name to the field.
+        """
+
+        ret_names = {
+            field.name: field for field in self.exposed_fields if field.name in fields
+        }
+
+        ret_ids = {
+            field.id: field for field in self.exposed_fields if field.id in fields
+        }
+
+        return {**ret_names, **ret_ids}
+
+    def resolve_fields(self, fields: Collection[str | FieldIdentifier] | None):
+        """
+        From a list of either field IDs or field names, get their fields.
+        Duplicate fields are simply ignored.
+        """
+
         if fields is None:
             return self.exposed_fields
         else:
-            return [
+            return {
                 field
                 for field in self.exposed_fields
                 if field.name in fields or field.id in fields
-            ]
+            }
 
 
 class BaseLandtableDatabase(pydantic.BaseModel):

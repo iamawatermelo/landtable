@@ -9,12 +9,11 @@ Turn a Landtable formula into an SQL statement suitable for use with SELECT.
 from __future__ import annotations
 
 from typing import Any
-from typing import List
 
 from landtable.formula.exceptions import FormulaTypeException
 from landtable.formula.formula import Formula
 from landtable.formula.lexer import TokenType
-from landtable.formula.parse import ASTConcreteType
+from landtable.formula.parse import ASTConcreteType, ASTType
 from landtable.formula.parse import ASTNode
 from landtable.formula.parse import ASTTypeEnvironment
 from landtable.formula.parse import BinOp
@@ -27,19 +26,7 @@ from landtable.formula.parse import Variable
 from landtable.formula.sql.functions import SQL_FUNCTION_IMPLS
 
 
-def to_sql(formula: Formula, env: ASTTypeEnvironment, values: List[Any]) -> str:
-    """
-    Parse a formula into an SQL statement suitable for use with SELECT.
-
-    Returns a tuple of (statement, values).
-    """
-
-    typ = formula.ast.resolve_type(env)
-    if type(typ) is not ASTConcreteType:
-        raise FormulaTypeException(
-            message=f"only formulae returning concrete types, like number or string, are supported (got {typ})"
-        )
-
+def _build_recurse(env: ASTTypeEnvironment, values: list[Any]):
     def recurse(node: ASTNode):
         if type(node) is Cast:
             match node.type:
@@ -102,7 +89,27 @@ def to_sql(formula: Formula, env: ASTTypeEnvironment, values: List[Any]) -> str:
         else:
             raise FormulaTypeException(message=f"unsupported node type {node}")
 
-    expr = recurse(formula.ast)
+    return recurse
+
+
+def to_sql_expr(
+    formula: Formula, env: ASTTypeEnvironment, values: list[Any]
+) -> tuple[str, ASTType]:
+    typ = formula.ast.resolve_type(env)
+
+    return _build_recurse(env, values)(formula.ast), typ
+
+
+def to_sql_predicate(
+    formula: Formula, env: ASTTypeEnvironment, values: list[Any]
+) -> str:
+    """
+    Parse a formula into an SQL statement suitable for use with SELECT.
+
+    Returns a tuple of (statement, values).
+    """
+
+    expr, typ = to_sql_expr(formula, env, values)
 
     match typ:
         case ASTConcreteType.NUMBER:

@@ -17,7 +17,7 @@ from contextvars import Token
 from dataclasses import dataclass
 from itertools import chain
 from logging import getLogger
-from typing import Any
+from typing import Any, Callable
 from typing import Dict
 from typing import List
 from typing import Self
@@ -249,3 +249,17 @@ class Tracer(DummyTracer):
 
     def compute_json_trace(self) -> str:
         return json.dumps(self.compute_trace())
+
+
+def wrap_trace[T: Callable](
+    identifier: str, name: str | None = None
+) -> Callable[[T], T]:
+    def _inner(fn: T) -> T:
+        def _inner(*args, **kwargs):
+            with Tracer.from_context().trace(identifier, name):
+                return fn(*args, **kwargs)
+
+        # can't be bothered typing this properly
+        return _inner  # type: ignore
+
+    return _inner

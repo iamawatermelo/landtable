@@ -16,7 +16,8 @@ dependencies = [
 postgres = "landtable.backends.postgres_backend:PostgresBackend"
 
 [project.entry-points."landtable.auth"]
-unsafe_allow_all = "landtable.auth.unsafe:UnsafeAuthenticationPlugin"
+unsafe_allow_all_requests_i_know_what_i_am_doing = "landtable.auth.unsafe:UnsafeAuthenticationPlugin"
+reject = "landtable.auth.reject:RejectAuthenticationPlugin"
 
 [tool.setuptools]
 py-modules = []

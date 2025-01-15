@@ -7,16 +7,12 @@ from __future__ import annotations
 import dataclasses
 import traceback
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from logging import basicConfig
 from logging import getLogger
 from typing import Any
 
 from fastapi import FastAPI
 from fastapi import Request
-from fastapi import Response
-from fastapi.datastructures import Headers
-from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
 from .legacy import legacy_router
@@ -41,6 +37,8 @@ class TracingResponse(JSONResponse):
             return super().render(content)
 
         content["_trace"] = tracer.compute_trace()
+
+        return super().render(content)
 
 
 def Landtable():

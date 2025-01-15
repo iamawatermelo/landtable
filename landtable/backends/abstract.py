@@ -16,6 +16,7 @@ from typing import Any
 from typing import ClassVar
 from typing import Dict
 from typing import Literal
+from typing import TYPE_CHECKING
 from typing import TypeAlias
 from typing import Union
 
@@ -23,6 +24,9 @@ from pydantic import BaseModel
 from pydantic.dataclasses import dataclass
 from pydantic.fields import Field
 
+from landtable.auth.abstract import AccessType
+from landtable.auth.abstract import AuthenticationContext
+from landtable.auth.abstract.resources import TableRowsResource
 from landtable.exceptions import BaseAPIException
 from landtable.exceptions import LandtableExceptionCode
 from landtable.formula.formula import Formula
@@ -32,6 +36,9 @@ from landtable.state.models import BaseLandtableDatabase
 from landtable.state.models import LandtableDatabase
 from landtable.state.models import LandtableTable
 from landtable.state.models import LandtableWorkspace
+
+if TYPE_CHECKING:
+    from landtable.state import LandtableState
 
 
 @dataclass
@@ -88,6 +95,7 @@ class BaseTransactionOperation(BaseModel):
     A transaction.
     """
 
+    access_type: ClassVar[set[AccessType]]
     type: str
 
 
@@ -128,63 +136,86 @@ class FailureStrategy(BaseModel):
     Determines when an operation targeting multiple rows should fail.
     """
 
-    exec_target: int | None = None
-    order_by: Formula
-    fail_type: (
-        Union[
-            Literal["eq"],
-            Literal["neq"],
-            Literal["gt"],
-            Literal["ge"],
-            Literal["lt"],
-            Literal["le"],
-        ]
-        | None
-    ) = None
+    exec_target: int
+    fail_type: Union[
+        Literal["eq"],
+        Literal["neq"],
+        Literal["gt"],
+        Literal["ge"],
+        Literal["lt"],
+        Literal["le"],
+        None,
+    ]
 
 
 class Fetch(BaseTransactionOperation):
     """
-    Fetch columns.
-    Returns a FetchResult.
+    Fetch rows. Returns a RowResult with the rows that were fetched.
     """
 
+    access_type = {AccessType.READ}
     type: Literal["fetch"] = "fetch"
     target: Target
-    limit: int
-    sort: Formula
-    fields: set[str] | None = None
-    failure_strategy: FailureStrategy
+    limit: int = 1
+    sort: Formula | None = None
+    fields: set[FieldIdentifier | str] | None = None
+    failure_strategy: FailureStrategy | None = None
 
 
 class Delete(BaseTransactionOperation):
+    """
+    Delete rows. Returns a RowResult with the rows that were deleted.
+    """
+
+    access_type = {AccessType.DELETE}
     type: Literal["delete"] = "delete"
     target: Target
-    limit: int
-    sort: Formula
-    fields: set[str] | None = None
-    failure_strategy: FailureStrategy
+    limit: int = 1
+    sort: Formula | None = None
+    fields: set[FieldIdentifier | str] | None = None
+    failure_strategy: FailureStrategy | None = None
 
 
 class Create(BaseTransactionOperation):
+    """
+    Create one row. Returns the ID of the row that was created.
+    """
+
+    access_type = {AccessType.WRITE}
     type: Literal["create"] = "create"
-    row: Dict[str, Any]
+    row: Dict[FieldIdentifier | str, Any]
 
 
 class UpdateByFormula(BaseTransactionOperation):
     """
-    Update multiple rows and multiple columns at once.
+    Update multiple rows and multiple columns at once. Returns a RowResult
+    with the rows that were modified or created.
     """
 
+    access_type = {AccessType.MODIFY, AccessType.READ}
     type: Literal["updateByFormula"] = "updateByFormula"
     target: Target
-    exec_formula: Dict[str, Formula]
+    exec_formula: Dict[FieldIdentifier | str, Formula]
+    limit: int = 1
+    sort: Formula | None = None
+    fields: set[FieldIdentifier | str] | None = None
+    failure_strategy: FailureStrategy | None = None
 
 
 class Update(BaseTransactionOperation):
+    """
+    Set the contents of multiple rows. Returns a RowResult with the old values of the rows.
+    """
+
+    access_type = {AccessType.MODIFY, AccessType.READ}
     type: Literal["update"]
     target: Target
-    row: Dict[str, Any]
+    row: Dict[FieldIdentifier | str, Any]
+    limit: int = 1
+    sort: Formula | None = None
+    fields: set[FieldIdentifier | str] | None = None
+    failure_strategy: FailureStrategy | None = None
+    patch: bool = True
 
 
 TransactionOperation: TypeAlias = Union[Fetch, Delete, Create, UpdateByFormula, Update]
@@ -201,6 +232,31 @@ class LandtableTransaction(BaseModel):
                 return False
 
         return True
+
+    async def execute_and_validate(
+        self,
+        state: LandtableState,
+        table: LandtableTable,
+        workspace: LandtableWorkspace,
+        consistency: TransactionConsistency = TransactionConsistency.STRICT,
+    ):
+        """
+        Execute this transaction, validating that the caller has permission
+        to do this.
+        """
+        actions = set()
+
+        for op in self.ops:
+            actions |= op.access_type
+
+        resource = TableRowsResource(table=table.id, workspace=workspace.id)
+
+        async with AuthenticationContext.from_context().evaluate(actions, resource):
+            database, backend = await state.fetch_database(workspace.primary_replica)
+
+            return await backend.exec_transaction(
+                self, table, database, consistency=consistency
+            )
 
 
 class BackendInformation(BaseModel):
