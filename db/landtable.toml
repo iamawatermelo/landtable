@@ -1,0 +1,35 @@
+type = "workspace"
+version = 1
+
+alias = "High Seas"
+id = "ltb:XXX"
+
+# Whether to allow the API to modify this workspace
+allow_runtime_modification = false
+
+# Instructions on how to create this table from scratch.
+# We can use existing strategies defined at the meta level:
+[primary_strategy]
+extends = "Nest Postgres"
+table_name = "people"
+
+[secondary_strategy.airtable]
+extends = "HC Airtable"
+base = "appXXXX"
+
+# or write completely new strategies:
+[primary_strategy]
+using = "postgres_provisioning_plugin"
+hostname = "hackclub.app"
+table_name = "people"
+
+[primary_strategy.authentication.userpass]
+username = "sarah"
+password = "i_l0ve_hC!"
+
+[secondary_strategy.airtable]
+using = "airtable_provisioning_plugin"
+base = "appXXXX"
+
+[secondary_strategy.airtable.authentication.token]
+token = "patXXXX"

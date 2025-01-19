@@ -1,5 +1,5 @@
 """
-Provides a simpler interface over the Transaction API.
+Provides a simpler, more familiar interface over the Transaction API.
 """
 
 from __future__ import annotations

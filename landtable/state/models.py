@@ -37,6 +37,36 @@ else:
 logger = getLogger(__name__)
 
 
+FieldType: TypeAlias = Union[
+    Literal["attachment"],
+    Literal["autonumber"],
+    Literal["barcode"],
+    Literal["string"],
+    Literal["boolean"],
+    Literal["count"],
+    Literal["created_at"],
+    Literal["created_by"],
+    Literal["currency"],
+    Literal["datetime"],
+    Literal["duration"],
+    Literal["email"],
+    Literal["modified_by"],
+    Literal["modified_time"],
+    Literal["linked"],
+    Literal["long_text"],
+    Literal["lookup"],
+    Literal["multi_select"],
+    Literal["number"],
+    Literal["percentage"],
+    Literal["phone_number"],
+    Literal["rating"],
+    Literal["short_text"],
+    Literal["select"],
+    Literal["url"],
+    Literal["user"]
+]
+
+
 class LandtableMeta(pydantic.BaseModel):
     """
     Configuration for Landtable.
@@ -80,34 +110,7 @@ class LandtableField(pydantic.BaseModel, frozen=True):
     An immutable ID for this field (lfd:...).
     """
 
-    type: Union[
-        Literal["attachment"],
-        Literal["autonumber"],
-        Literal["barcode"],
-        Literal["string"],
-        Literal["boolean"],
-        Literal["count"],
-        Literal["created_at"],
-        Literal["created_by"],
-        Literal["currency"],
-        Literal["datetime"],
-        Literal["duration"],
-        Literal["email"],
-        Literal["modified_by"],
-        Literal["modified_time"],
-        Literal["linked"],
-        Literal["long_text"],
-        Literal["lookup"],
-        Literal["multi_select"],
-        Literal["number"],
-        Literal["percentage"],
-        Literal["phone_number"],
-        Literal["rating"],
-        Literal["short_text"],
-        Literal["select"],
-        Literal["url"],
-        Literal["user"],
-    ]
+    type: FieldType
     """
     The type of this field.
     """

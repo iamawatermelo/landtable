@@ -1,26 +1,4 @@
-table "people" {
-    version 1
-    
-    replicas {
-        // reference a database from landtable.kdl
-        // (two tables with different primaries cannot be joined on,
-        // so don't do that)
-        primary "postgres"
-        
-        // or, specify some overrides
-        secondary "postgres_backup" {
-            table "not_people"
-        }
-        
-        // or, define a completely new data source
-        secondary "airtable" {
-            type "airtable"
-            name "airtable"
-            credential_provider "vault+http://localhost:8200/"
-            table "people"
-        }
-    }
-    
+table "people" version=1 {
     fields {
         // specify values as attributes...
         field "first_name" type="short_text"

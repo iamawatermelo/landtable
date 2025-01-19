@@ -1,0 +1,27 @@
+landtable version=1 {
+    provisioning {
+        // Whether to allow runtime provisioning
+        // (whether you can add/remove fields via the API or the web)
+        allow_runtime_provisioning true
+        
+        // A provisioning strategy defines how a new database can be
+        // created.
+        strategy "Nest Postgres" {
+            primary {
+                using "postgres_provisioning_plugin"
+                hostname "hackclub.app"
+                
+                authentication "userpass" {
+                    username "sarah"
+                    password "i_l0ve_hC!"
+                }
+                
+                // or:
+                
+                authentication "vault-pg" {
+                    path "database/creds/landtable"
+                }
+            }
+        }
+    }
+}

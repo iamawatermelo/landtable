@@ -20,7 +20,6 @@ from logging import getLogger
 from typing import Any, Callable
 from typing import Dict
 from typing import List
-from typing import Self
 
 from landtable import __version__
 

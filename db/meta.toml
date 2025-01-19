@@ -1,0 +1,15 @@
+[landtable]
+version = 1
+minimum_landtable_version = "0.0.1"
+
+[landtable.provisioning]
+allow_runtime_provisioning = true
+
+[landtable.provisioning.strategies."Nest Postgres".primary]
+plugin = "postgres_provisioning_plugin"
+hostname = "hackclub.app"
+
+[landtable.provisioning.strategies."Nest Postgres".primary.authentication]
+type = "userpass"
+username = "sarah"
+password = "i_l0ve_hC!"
