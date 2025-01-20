@@ -63,17 +63,36 @@ class AccessType(Enum):
     """
     Delete this resource.
     """
+    
+    EXECUTE = "execute"
+    """
+    Execute something on this resource.
+    """
 
 
 class Resource:
     """
     Something that an Identity can perform an AccessType on.
     Should be subclassed.
-
-    **Unknown resources to an access provider must raise an exception.**
     """
 
-    resource_id: ClassVar[str]
+    id: ClassVar[str]
+    """
+    Something unique identifying this resource, like lt.workspace.
+    
+    Do not use the `lt.` namespace unless you are a first-party
+    Landtable plugin to avoid confusion and conflicts.
+    """
+    
+    depset: ClassVar[list[str]]
+    """
+    A suggestion of what access to this resource depends on to be useful.
+    
+    For example, lt.workspace.aliases may require lt.workspace:READ.
+    
+    This is not and should not be enforced and is purely a suggestion
+    for users.
+    """
 
     @property
     def resource_name(self) -> str:

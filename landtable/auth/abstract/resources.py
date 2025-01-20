@@ -19,7 +19,7 @@ class TableRowsResource(Resource):
     Whether the caller can access the rows of a table.
     """
 
-    id = "table_rows"
+    id = "lt.table_rows"
 
     table: TableIdentifier
     workspace: WorkspaceIdentifier
@@ -35,7 +35,7 @@ class TableAliasesResource(Resource):
     Whether the caller can access the aliases of a table.
     """
 
-    id = "table_aliases"
+    id = "lt.table_aliases"
 
     table: TableIdentifier
     workspace: WorkspaceIdentifier
@@ -47,7 +47,7 @@ class TableConfigurationResource(Resource):
     Whether the caller can access the configuration of a table.
     """
 
-    id = "table_config"
+    id = "lt.table_config"
 
     table: TableIdentifier
     workspace: WorkspaceIdentifier
@@ -61,9 +61,11 @@ class TableConfigurationResource(Resource):
 class WorkspaceResource(Resource):
     """
     Whether the caller can access this workspace at all.
+    
+    Supports READ only.
     """
 
-    id = "workspace"
+    id = "lt.workspace"
 
     workspace: WorkspaceIdentifier
 
@@ -77,9 +79,11 @@ class WorkspaceConfigurationResource(Resource):
     """
     Whether the caller can access non-sensitive configuration of a workspace,
     like its name.
+    
+    Supports READ/WRITE/UPDATE/DELETE.
     """
 
-    id = "workspace_config"
+    id = "lt.workspace_config"
 
     workspace: WorkspaceIdentifier
 
@@ -90,11 +94,42 @@ class WorkspaceConfigurationResource(Resource):
 
 class WorkspaceAliasesResource(Resource):
     """
-    Whether the caller can find a workspace by alias or write aliases.
+    Whether the caller can find a workspace by alias or change aliases.
+    Sensitive operation.
+    
+    Supports READ/WRITE/UPDATE/DELETE.
     """
 
-    id = "workspace_aliases"
+    id = "lt.workspace_aliases"
 
     @property
     def resource_name(self) -> str:
         return "aliases"
+
+
+class LandtableAPIResource(Resource):
+    """
+    Whether the caller can use the Extended Landtable API.
+    
+    The only operation that makes sense for this resource is EXECUTE.
+    """
+    
+    id = "lt.ext_api"
+    
+    @property
+    def resource_name(self) -> str:
+        return "landtable API"
+
+
+class CompatibilityAPIResource(Resource):
+    """
+    Whether the caller can use the Airtable compatibility layer.
+    
+    The only operation that makes sense for this resource is EXECUTE.
+    """
+    
+    id = "lt.legacy_api"
+    
+    @property
+    def resource_name(self) -> str:
+        return "compatibility API"

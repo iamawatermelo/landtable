@@ -110,7 +110,6 @@ Deploy our changes with the Landtable IaC CLI:
 ```sh
 $ landtable iac deploy workspace.kdl \  # deploy workspace.kdl
     --meta meta.kdl \                   # using meta.kdl
-    --save-meta \                       # which we will save to Landtable
     --endpoint http://localhost:5963 \  # using a locally hosted endpoint
 
 Computed execution plan in 512 ms
