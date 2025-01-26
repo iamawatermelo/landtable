@@ -21,6 +21,7 @@ from typing import Union
 
 import pydantic
 
+from landtable.exceptions import APIBadRequestException
 from landtable.formula.parse import ASTConcreteType
 from landtable.identifiers import DatabaseIdentifier
 from landtable.identifiers import FieldIdentifier
@@ -94,7 +95,7 @@ class LandtableFieldReplicaConfig(pydantic.BaseModel, frozen=True):
     """
 
 
-class LandtableField(pydantic.BaseModel, frozen=True):
+class LandtableField(pydantic.BaseModel):
     """
     A field in a table. A field has a certain type, like "attachment",
     and can have configurable database options.
@@ -138,30 +139,7 @@ class LandtableField(pydantic.BaseModel, frozen=True):
         if config := self.replica_config.get(replica):
             return config
 
-        return LandtableFieldReplicaConfig(column_name=self.name)
-
-
-class LandtableTableReplicaConfig(pydantic.BaseModel):
-    """
-    Replica configuration for a Landtable table.
-    """
-
-    model_config = pydantic.ConfigDict(extra="allow")
-
-    table_name: str
-    """
-    The name of the underlying database table.
-    """
-
-    id_column: str | None
-    """
-    The ID column for this database table.
-    """
-
-    created_at_column: str | None
-    """
-    The created at column for this database table.
-    """
+        raise Exception(f"no replica config for replica {replica} on field {self.id}")
 
 
 class LandtableTable(pydantic.BaseModel):
@@ -195,19 +173,17 @@ class LandtableTable(pydantic.BaseModel):
     a default, Landtable will never be able to write to the database.
     """
 
-    replica_config: Dict[DatabaseIdentifier, LandtableTableReplicaConfig]
+    replica_config: Dict[DatabaseIdentifier, dict]
 
     def fetch_replica_config(self, replica: Identifier):
         """
-        Fetch the LandtableTableReplicaConfig for this replica.
+        Fetch the replica config dict for this replica. 
         """
 
         if (config := self.replica_config.get(replica)) is not None:
             return config
-
-        return LandtableTableReplicaConfig(
-            table_name=self.name, id_column=None, created_at_column=None
-        )
+        
+        raise Exception(f"no replica configuration for replica {replica} on table {self.id}")
 
     def create_field_map(
         self, fields: Collection[str | FieldIdentifier]
@@ -230,17 +206,31 @@ class LandtableTable(pydantic.BaseModel):
     def resolve_fields(self, fields: Collection[str | FieldIdentifier] | None):
         """
         From a list of either field IDs or field names, get their fields.
-        Duplicate fields are simply ignored.
+        Duplicate fields and missing fields are checked.
         """
 
         if fields is None:
             return self.exposed_fields
         else:
-            return {
-                field
+            non_unique_fields = [
+                field.id
                 for field in self.exposed_fields
                 if field.name in fields or field.id in fields
-            }
+            ]
+            
+            if len(non_unique_fields) != len(fields):
+                raise APIBadRequestException(message=f"some fields specified don't exist (fields: {fields})")
+            
+            unique_fields = set(non_unique_fields)
+            
+            if len(unique_fields) != len(fields):
+                raise APIBadRequestException(message=f"duplicate fields specified (fields: {fields})")
+            
+            return [
+                field
+                for field in self.exposed_fields
+                if field.id in unique_fields
+            ]
 
 
 class BaseLandtableDatabase(pydantic.BaseModel):

@@ -1,38 +1,23 @@
-landtable version=1 {
-    auth "jwt" {
-        jwks_endpoint "https://slack.com/.well-known/jwks.json"
-        aud "https://landtable.srh.dog/"
-        iss "https://slack.com/"
-        
-        assert {
-            payload_field field="https://slack.com/team_id" is="T0RR"
-        }
-        
-        assume "lt.workspace" workspace="lwk:..."
-        assume "lt.table_rows" table="ltb:..." workspace="lwk:..."
+type "meta"
+version 1
+
+auth "jwt" {}
+
+// Whether to allow runtime provisioning
+// (whether you can add/remove fields via the API or the web)
+allow_runtime_provisioning true
+
+database "Nest Postgres" {
+    using "postgres_v0"
+    hostname "hackclub.app"
+    
+    authentication type="literal" {
+        token ""
     }
     
-    provisioning {
-        // Whether to allow runtime provisioning
-        // (whether you can add/remove fields via the API or the web)
-        allow_runtime_provisioning true
-        
-        // A provisioning strategy defines how a new database can be
-        // created.
-        strategy "Nest Postgres" {
-            using "postgres_provisioning_plugin"
-            hostname "hackclub.app"
-            
-            authentication "userpass" {
-                username "sarah"
-                password "i_l0ve_hC!"
-            }
-            
-            // or:
-            
-            authentication "vault-pg" {
-                path "database/creds/landtable"
-            }
-        }
+    // or:
+    
+    /-authentication type="vault-pg" {
+        path "database/creds/landtable"
     }
 }

@@ -24,7 +24,7 @@ import landtable.state.models as models
 from landtable.auth import AuthenticationPluginResolver
 from landtable.auth.abstract import AccessType
 from landtable.auth.abstract import AuthenticationContext
-from landtable.auth.abstract.resources import WorkspaceAliasesResource
+from landtable.auth.abstract.resources import WorkspaceAliasesResource, WorkspaceResource
 from landtable.backends import BackendResolver
 from landtable.backends.abstract import DatabaseBackend
 from landtable.exceptions import APIForbidden
@@ -202,10 +202,10 @@ class LandtableState:
 
         if not (isinstance(workspace, Identifier) or workspace[:4] == "lwk:"):
             # Ensure that the caller can read workspace aliases
-            async with AuthenticationContext.from_context().evaluate(
-                {AccessType.READ}, WorkspaceAliasesResource()
-            ):
-                pass
+            await AuthenticationContext.from_context().evaluate(
+                {AccessType.READ},
+                WorkspaceAliasesResource()
+            )
 
         if (
             entry := self.workspace_cache.get(str(workspace))
@@ -232,7 +232,17 @@ class LandtableState:
                         )
 
                     workspace = alias.value.decode()
-
+            
+            # Ensure the caller has access to this workspace
+            await AuthenticationContext.from_context().evaluate(
+                {AccessType.READ},
+                WorkspaceResource(
+                    workspace=Identifier.parse_from(workspace)
+                        if isinstance(workspace, str)
+                        else workspace
+                )
+            )
+            
             workspace = str(workspace)
 
             workspace_bytes = await self.db.get(

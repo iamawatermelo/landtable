@@ -16,7 +16,7 @@ SECURITY:
 # license version 1.0.1. See the LICENSE.md for more information.
 from __future__ import annotations
 
-import asyncio
+import configparser
 from logging import getLogger
 from typing import Any
 from typing import cast
@@ -26,8 +26,9 @@ import asyncpg
 from asyncpg import Pool
 from asyncpg import Record
 from asyncpg.pool import PoolConnectionProxy
+from pydantic import BaseModel
 
-from landtable.backends.abstract import BackendInformation
+from landtable.backends.abstract import BackendInformation, Create
 from landtable.backends.abstract import BaseTransactionOperation
 from landtable.backends.abstract import DatabaseBackend
 from landtable.backends.abstract import Delete
@@ -70,6 +71,27 @@ else:
 logger = getLogger(__name__)
 
 
+class PostgresTableReplicaConfig(BaseModel):
+    """
+    Replica configuration for a Landtable table.
+    """
+
+    table_name: str
+    """
+    The name of the underlying database table.
+    """
+
+    id_column: str
+    """
+    The ID column for this database table.
+    """
+
+    created_at_column: str
+    """
+    The created at column for this database table.
+    """
+
+
 @wrap_trace("formula", "Create SQL predicate")
 def parse_target(target: Target, environment: ASTTypeEnvironment, values: list[Any]):
     if type(target) is RowTarget:
@@ -86,15 +108,12 @@ async def create_select_statement(
     target: Target,
     columns_to_select: set[str],
     replica: DatabaseIdentifier,
+    replica_config: PostgresTableReplicaConfig,
     table: LandtableTable,
     values: list,
     limit: int | None = None,
     sort: Formula | None = None,
 ):
-    replica_config = table.fetch_replica_config(replica)
-    assert replica_config.id_column is not None
-    assert replica_config.created_at_column is not None
-
     env = ASTTypeEnvironment(
         variables={
             field.fetch_replica_config(replica).column_name: field.type_to_ast_type()
@@ -109,7 +128,7 @@ async def create_select_statement(
 
     column_str = ",".join(columns_to_select)
     statement = (
-        f"SELECT {column_str} FROM {replica_config.table_name}WHERE {predicate} "
+        f"SELECT {column_str} FROM {replica_config.table_name} WHERE {predicate}"
     )
 
     if limit is not None:
@@ -118,7 +137,7 @@ async def create_select_statement(
                 message=f"limit must be above zero (got {limit})"
             )
 
-        statement += f"LIMIT {limit}"
+        statement += f" LIMIT {limit}"
 
     if sort is not None:
         sort_predicate, type = to_sql_expr(sort, env, values)
@@ -127,7 +146,7 @@ async def create_select_statement(
                 message=f"sort formula expression should return a number, not {type}"
             )
 
-        statement += f"ORDER BY {sort_predicate}"
+        statement += f" ORDER BY {sort_predicate}"
 
     return statement
 
@@ -165,16 +184,14 @@ class PostgresBackend(DatabaseBackend):
         Execute a fetch / update / delete operation.
         """
 
-        replica_config = table.fetch_replica_config(table.id)
-        assert replica_config.id_column is not None
-        assert replica_config.created_at_column is not None
+        replica_config = PostgresTableReplicaConfig(**table.fetch_replica_config(config.id))
 
         columns = set()
 
         fields = table.resolve_fields(op.fields)
 
         for field in fields:
-            columns.add(field.fetch_replica_config(table.id).column_name)
+            columns.add(field.fetch_replica_config(config.id).column_name)
 
         columns.add(replica_config.id_column)
         columns.add(replica_config.created_at_column)
@@ -184,7 +201,8 @@ class PostgresBackend(DatabaseBackend):
             op.target,
             # Add some more columns to join on if we're not just fetching
             columns if isinstance(op, Fetch) else columns | {"ctid", "tableoid"},
-            table.id,
+            config.id,
+            replica_config,
             table,
             values,
             op.limit,
@@ -232,7 +250,60 @@ class PostgresBackend(DatabaseBackend):
                 for row in result
             ]
         )
+    
+    async def _exec_create(
+        self,
+        op: Create,
+        transaction: LandtableTransaction,
+        table: LandtableTable,
+        config: LandtableDatabase,
+        connection: PoolConnectionProxy[Record],
+    ):
+        """
+        Execute a fetch / update / delete operation.
+        """
 
+        replica_config = PostgresTableReplicaConfig(**table.fetch_replica_config(config.id))
+
+        fields = table.resolve_fields(op.row.keys())
+        
+        query = (
+            # Table to insert (interpolated value: table name from db)
+            f"INSERT INTO {replica_config.table_name} "
+            # Columns to insert into (interpolated value: column names from db)
+            f"({",".join(field.fetch_replica_config(config.id).column_name for field in fields)}) "
+            # Values (items here are from API, so we use prepared statements here)
+            # e.g VALUES ($1,$2,$3)
+            f"VALUES ({",".join(f"${n + 1}" for n in range(len(fields)))})"
+            # What to return (interpolated value: column names from db)
+            f"RETURNING {",".join(field.fetch_replica_config(config.id).column_name for field in table.exposed_fields)}"
+        )
+        
+        values = []
+        
+        for field in fields:
+            print(op.row)
+            values.append(op.row.get(field.name, op.row.get(field.id)))
+        
+        with Tracer.from_context().trace("db", "execute query", {"query": query}):
+            # Safely put untrusted values into our query using asyncpg
+            # values
+            row = await connection.fetch(query, *values)
+        
+        use_id = transaction.use_id
+        
+        return RowResult(
+            rows=[
+                Row(
+                    id=Identifier("lrw", row.get(replica_config.id_column)),
+                    created_at=row.get(replica_config.created_at_column),
+                    contents={
+                        str(field.id) if use_id else field.name: row.get(field.fetch_replica_config())
+                        for field in fields},
+                )
+            ]
+        )
+    
     async def _exec_op(
         self,
         op: BaseTransactionOperation,
@@ -247,8 +318,11 @@ class PostgresBackend(DatabaseBackend):
         op = cast(TransactionOperation, op)
 
         if type(op) in (Fetch, Update, Delete):
-            return self._exec_rudop(op, transaction, table, config, connection)
-
+            return await self._exec_rudop(op, transaction, table, config, connection)
+        
+        if type(op) is Create:
+            return await self._exec_create(op, transaction, table, config, connection)
+        
         raise NotImplementedError
 
     async def exec_transaction(

@@ -1,0 +1,107 @@
+version 1
+lt_version ">=0.0.1"
+
+@env "production" {
+    // Databases that already exist in Landtable will be changed.
+    database "primary" {
+        name "Primary Database"
+        
+        using "postgres_v0"
+        hostname "hackclub.app"
+        
+        username {
+            plugin "vault"
+            path "database/creds/landtable"
+            field "secret"
+        }
+        
+        password {
+            plugin "vault"
+            path "database/creds/landtable"
+            field "secret"
+        }
+    }
+    
+    // You can also do this to require using an existing database,
+    // for organisations that have multiple different projects using
+    // IaC but share databases.
+    /-database "primary"
+    
+    // Landtable can also manage your databases for you.
+    /-managed_database "primary" {
+        using "postgres_provisioning_v0"
+        hostname "hackclub.app"
+        database "landtable"
+        
+        username {
+            plugin "vault"
+            path "database/creds/landtable"
+            field "secret"
+        }
+        
+        password {
+            plugin "vault"
+            path "database/creds/landtable"
+            field "secret"
+        }
+    }
+}
+
+@env "dev" {
+    database "primary" {
+        name "primary"
+        
+        using "in_memory_v0"
+    }
+}
+
+table "people" {
+    // When the table already exists in Landtable, specify how to merge
+    // the two.
+    merge_strategy "keep_existing"
+    
+    @env "production" {
+        allow_runtime_modification false
+    }
+    
+    field "first_name" type="short_text"
+    
+    // ... or nested nodes
+    field "last_name" {
+        type "short_text"
+        
+        @env "production" {
+            // change the column on the primary replica
+            primary_config {
+                column "name"
+            }
+            
+            // or configure the secondary replica
+            secondary_config "Airtable" {
+                // let's not replicate this specific field to Airtable
+                replicate false
+            }
+        }
+    }
+    
+    // Computed fields!
+    field "name" {
+        type "formula"
+        formula "{first_name} & \" \" & {last_name}"
+    }
+    
+    field "email" type="email"
+    
+    // you can use nested nodes _and_ attributes even
+    field "frumbicated_status" type="enum" {
+        default "florp"
+        
+        enum "florp"
+        enum "glorp"
+        enum "gloop"
+        enum "gleep"
+    }
+    
+    // Landtable formulae can be saved in views!
+    view "floorped_people" filter="{frumbicated_status} = \"florp\""
+}

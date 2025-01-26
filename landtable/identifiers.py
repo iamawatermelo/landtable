@@ -76,7 +76,7 @@ class Identifier:
 
         return cls.parse_from(value)
 
-T    @classmethod
+    @classmethod
     def __get_pydantic_core_schema__(
         cls, source_type: Any, handler: GetCoreSchemaHandler
     ) -> CoreSchema:

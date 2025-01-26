@@ -3,8 +3,5 @@
   "auth_plugins": {
     "unsafe_allow_all_requests_i_know_what_i_am_doing": {}
   },
-  "provisioning": {
-    "allow_runtime_provisioning": true,
-    "restrict_identities": false
-  }
+  "allow_runtime_provisioning": true
 }

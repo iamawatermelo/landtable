@@ -11,9 +11,8 @@ from __future__ import annotations
 from contextlib import contextmanager, asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
-from typing import AsyncContextManager
 from typing import Callable
 from typing import Protocol
 from landtable.exceptions import APIForbidden
@@ -75,6 +74,8 @@ class Resource:
     Something that an Identity can perform an AccessType on.
     Should be subclassed.
     """
+    
+    uses_parameter: bool
 
     id: ClassVar[str]
     """
@@ -82,16 +83,6 @@ class Resource:
     
     Do not use the `lt.` namespace unless you are a first-party
     Landtable plugin to avoid confusion and conflicts.
-    """
-    
-    depset: ClassVar[list[str]]
-    """
-    A suggestion of what access to this resource depends on to be useful.
-    
-    For example, lt.workspace.aliases may require lt.workspace:READ.
-    
-    This is not and should not be enforced and is purely a suggestion
-    for users.
     """
 
     @property
@@ -108,6 +99,11 @@ class ContextFailedException(Exception):
     Thrown when an authentication context successfully validated that the
     current context is not able to do this action.
     """
+
+
+@asynccontextmanager
+async def dummy_context_manager():
+    yield
 
 
 class AuthenticationContext(Protocol):
@@ -139,7 +135,6 @@ class AuthenticationContext(Protocol):
 
         return cls.context.get()
 
-    @asynccontextmanager
     async def evaluate(self, actions: set[AccessType], on: Resource):
         """
         Answer the question: can this context perform [actions] on [identifier]?
@@ -148,8 +143,8 @@ class AuthenticationContext(Protocol):
         """
 
         try:
-            async with self._evaluate(actions, on):
-                yield
+            await self._evaluate(actions, on)
+            return dummy_context_manager()
         except ContextFailedException:
             pass
 
@@ -157,7 +152,7 @@ class AuthenticationContext(Protocol):
             message=f"current caller identity cannot perform {', '.join(x.value for x in actions)} on {on.resource_name}"
         )
 
-    def _evaluate(self, actions: set[AccessType], on: Resource) -> AsyncContextManager:
+    async def _evaluate(self, actions: set[AccessType], on: Resource) -> None:
         """
         Inner function for the evaluate function. Throw a ContextFailedException
         when the user may not perform this set of actions on that resource.

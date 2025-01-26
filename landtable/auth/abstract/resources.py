@@ -22,11 +22,10 @@ class TableRowsResource(Resource):
     id = "lt.table_rows"
 
     table: TableIdentifier
-    workspace: WorkspaceIdentifier
-
+    
     @property
     def resource_name(self) -> str:
-        return f"rows of {self.workspace}/{self.table}"
+        return f"rows of {self.table}"
 
 
 @dataclass
@@ -35,10 +34,9 @@ class TableAliasesResource(Resource):
     Whether the caller can access the aliases of a table.
     """
 
-    id = "lt.table_aliases"
+    id = "lt.tables.aliases"
 
     table: TableIdentifier
-    workspace: WorkspaceIdentifier
 
 
 @dataclass
@@ -47,14 +45,13 @@ class TableConfigurationResource(Resource):
     Whether the caller can access the configuration of a table.
     """
 
-    id = "lt.table_config"
+    id = "lt.tables.configuration"
 
     table: TableIdentifier
-    workspace: WorkspaceIdentifier
 
     @property
     def resource_name(self) -> str:
-        return f"configuration of {self.workspace}/{self.table}"
+        return f"configuration of {self.table}"
 
 
 @dataclass
@@ -95,7 +92,6 @@ class WorkspaceConfigurationResource(Resource):
 class WorkspaceAliasesResource(Resource):
     """
     Whether the caller can find a workspace by alias or change aliases.
-    Sensitive operation.
     
     Supports READ/WRITE/UPDATE/DELETE.
     """

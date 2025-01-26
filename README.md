@@ -37,6 +37,10 @@ Then, we'll tell the Landtable IaC tool how to create tables.
 type "meta"
 version 1
 
+// Use the authentication plugin that effectively does nothing.
+// Don't use this in production!
+auth "unsafe_allow_all_requests_i_know_what_i_am_doing" {}
+
 provisioning {
     strategy "Postgres" {
         using "postgres_provisioning_plugin"

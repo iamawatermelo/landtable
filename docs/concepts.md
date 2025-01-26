@@ -59,7 +59,7 @@ at multiple points inside the program. This includes:
 - at the configuration level
 
 An authentication context is an object that answers the fundamental
-question of "is <subject> allowed to <action> on <resource>?".
+question of "is (subject) allowed to (action) on (resource)?".
 
 While authentication contexts provide additional security, you are
 responsible for ensuring that your authentication plugins are configured
@@ -70,10 +70,10 @@ depth strategy.
 
 ![Diagram explaining an example defense in depth strategy for Landtable](./defense-in-depth.png)
 
-### Schema migration strategies
+### Database strategies
 
-A schema migration strategy tells Landtable what to do when you've
-changed something about a table.
+Database strategies manage database tables and Landtable tables on your
+behalf.
 
-For example, a schema migration strategy would tell Landtable how to
+For example, a database strategy would tell Landtable how to
 delete a Postgres database column when you delete a field in a table.

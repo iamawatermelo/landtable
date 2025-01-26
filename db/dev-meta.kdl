@@ -1,0 +1,9 @@
+// Provide different meta files for developers to use.
+landtable version=1 {
+    auth "unsafe_allow_all_requests_i_know_what_i_am_doing" {}
+    
+    // Specify some databases here, or use a provisioning plugin.
+    /-database "Dev Database" {
+        using "in_memory_v0"
+    }
+}

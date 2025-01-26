@@ -11,6 +11,8 @@ from landtable.api.common import Authentication
 from landtable.api.common import State
 from landtable.api.common import Table
 from landtable.api.common import Workspace
+from landtable.auth.abstract import AccessType
+from landtable.auth.abstract.resources import LandtableAPIResource
 from landtable.backends.abstract import LandtableTransaction
 from landtable.backends.abstract import TransactionConsistency
 
@@ -26,6 +28,9 @@ async def execute_transaction(
     consistency: TransactionConsistency,
     context: Authentication,
 ):
+    # Ensure the caller can use this API
+    await context.evaluate({AccessType.EXECUTE}, LandtableAPIResource())
+    
     with context.enter():
         return await transaction.execute_and_validate(
             state, table, workspace, consistency

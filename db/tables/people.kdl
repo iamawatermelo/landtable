@@ -1,4 +1,4 @@
-table "people" version=1 {
+table "people" {
     fields {
         // specify values as attributes...
         field "first_name" type="short_text"

@@ -241,17 +241,18 @@ class LandtableTransaction(BaseModel):
         consistency: TransactionConsistency = TransactionConsistency.STRICT,
     ):
         """
-        Execute this transaction, validating that the caller has permission
+        Execute a transaction, validating that the caller has permission
         to do this.
         """
+        
         actions = set()
 
         for op in self.ops:
             actions |= op.access_type
 
-        resource = TableRowsResource(table=table.id, workspace=workspace.id)
+        resource = TableRowsResource(table=table.id)
 
-        async with AuthenticationContext.from_context().evaluate(actions, resource):
+        async with await AuthenticationContext.from_context().evaluate(actions, resource):
             database, backend = await state.fetch_database(workspace.primary_replica)
 
             return await backend.exec_transaction(
@@ -285,6 +286,15 @@ class DatabaseBackend:
         Perform shutdown tasks for this database backend.
         """
 
+        pass
+    
+    async def iac_validate_table(
+        self
+    ):
+        """
+        Validate a table from the IaC CLI.
+        """
+        
         pass
 
     async def exec_transaction(

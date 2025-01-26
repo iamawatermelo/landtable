@@ -8,8 +8,6 @@ Reject all requests.
 # license version 1.0.1. See the LICENSE.md for more information.
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-
 from starlette.requests import Request
 
 from landtable.auth import AuthenticationPlugin
@@ -25,16 +23,17 @@ class RejectAuthenticationContext(AuthenticationContext):
     An AuthenticationContext represents a user's request.
     """
 
-    identity: Identity
-
-    @asynccontextmanager
+    identity: Identity = Identity(
+        name="anonymous",
+        metadata={}
+    )
+    
     async def _evaluate(self, actions: set[AccessType], on: Resource):
         """
         Reject all requests.
         """
 
         raise ContextFailedException
-        yield
 
 
 class RejectAuthenticationPlugin(AuthenticationPlugin):

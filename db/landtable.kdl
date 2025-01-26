@@ -1,36 +1,40 @@
 type "workspace"
 version 1
 
-alias "High Seas"
+name "High Seas"
+alias "highseas"
 alias "hs"
 id "ltb:XXXX"
 
-// Whether to allow the API to modify this workspace
+// Whether to allow the API to modify the configuration of this workspace
 allow_runtime_modification false
 
-// Instructions on how to create this table from scratch.
-// We can use existing strategies defined at the meta level:
-primary_strategy extends="Nest Postgres" table_name="people"
-secondary_strategy "airtable" extends="HC Airtable" base="appXXXX"
-
-// or write completely new strategies:
-/-primary_strategy {
-    using "postgres_provisioning_plugin"
-    hostname "hackclub.app"
-    table_name "people"
+// The @env directive lets you selectively exclude things based on
+// the environment (LANDTABLE_IAC_ENVIRONMENT= or -e)
+@env "production" {
+    // Use `primary_database` and `secondary_database` for connecting to
+    // existing databases. In this case, you will have to specify every
+    // column name manually.
     
-    authentication "userpass" {
-        username "sarah"
-        password "i_l0ve_hC!"
+    primary_database "Nest Postgres" {
+        table_name "people"
+    }
+    
+    secondary_database "Airtable" {
+        base "appXXXX"
+        
+        // Use the replicate property to turn off replication to a
+        // database.
+        replicate false
     }
 }
 
-/-secondary_strategy "airtable" {
-    using "airtable_provisioning_plugin"
-    base "appXXXX"
-    
-    authentication "token" {
-        token "patXXXX"
+// Landtable can also manage databases for you with `primary_strategy`
+// and `secondary_strategy` if you're not connecting to existing
+// databases.
+@env "dev" {
+    primary_strategy "Dev Database" {
+        using "in_memory_provisioning_v0"
     }
 }
 
@@ -42,15 +46,17 @@ table "people" {
     field "last_name" {
         type "short_text"
         
-        // change the column on the primary replica
-        primary_config {
-            column "name"
-        }
-        
-        // or the secondary replica
-        secondary_config "airtable" {
-            // let's not replicate PII to Airtable!
-            disallow_replication true
+        @env "production" {
+            // change the column on the primary replica
+            primary_config {
+                column "name"
+            }
+            
+            // or configure the secondary replica
+            secondary_config "Airtable" {
+                // let's not replicate this specific field to Airtable
+                replicate false
+            }
         }
     }
     
