@@ -12,6 +12,7 @@ from contextlib import contextmanager, asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import Enum
+import logging
 from typing import TYPE_CHECKING, Any, ClassVar
 from typing import Callable
 from typing import Protocol
@@ -24,6 +25,8 @@ from starlette.types import ASGIApp
 if TYPE_CHECKING:
     from landtable.state import LandtableState
     from landtable.auth import AuthenticationPluginResolver
+
+logger = logging.getLogger()
 
 
 @dataclass
@@ -94,6 +97,19 @@ class Resource:
         raise NotImplementedError
 
 
+class RuleType(Enum):
+    DENY = "deny"
+    ALLOW = "allow"
+    DEFER = "defer"
+
+
+@dataclass
+class Ruleset:
+    rule: RuleType
+    actions: set[AccessType]
+    test_resource: Callable[[Resource], bool]
+
+
 class ContextFailedException(Exception):
     """
     Thrown when an authentication context successfully validated that the
@@ -101,8 +117,8 @@ class ContextFailedException(Exception):
     """
 
 
-@asynccontextmanager
-async def dummy_context_manager():
+@contextmanager
+def dummy_context_manager():
     yield
 
 
@@ -138,18 +154,22 @@ class AuthenticationContext(Protocol):
     async def evaluate(self, actions: set[AccessType], on: Resource):
         """
         Answer the question: can this context perform [actions] on [identifier]?
-        On success, returns an AsyncContextManager.
-        On failure, throws an exception.
+        On success, returns a context manager.
+        On failure, throws an API exception.
+        
+        If you are implementing a new AuthenticationContext, prefer
+        extending the inner _evaluate function instead.
         """
 
         try:
             await self._evaluate(actions, on)
+            logger.debug(f"allowed {', '.join(x.value for x in actions)} on {on.resource_name} for {self.identity.name}")
             return dummy_context_manager()
         except ContextFailedException:
-            pass
+            logger.debug(f"denied {', '.join(x.value for x in actions)} on {on.resource_name} for {self.identity.name}")
 
         raise APIForbidden(
-            message=f"current caller identity cannot perform {', '.join(x.value for x in actions)} on {on.resource_name}"
+            message=f"identity {self.identity.name} cannot perform {', '.join(x.value for x in actions)} on {on.resource_name}"
         )
 
     async def _evaluate(self, actions: set[AccessType], on: Resource) -> None:
@@ -159,6 +179,76 @@ class AuthenticationContext(Protocol):
         """
 
         raise ContextFailedException
+    
+    def extend(
+        self, 
+        rules: list[Ruleset],
+        pass_through: bool
+    ):
+        """
+        Extend this AuthenticationContext to permit or deny additional
+        actions on a resource. Rules will be applied in order, from
+        first to last.
+        
+        If no rule matches, pass_through determines whether or not the
+        request will be denied or passed through to the underlying
+        authentication context.
+        """
+        
+        logger.debug(f"created new extended identity for {self.identity.name}")
+        return ExtendedAuthenticationContext(
+            identity=self.identity,
+            rules=rules,
+            extended_from=self,
+            pass_through=pass_through
+        )
+        
+
+@dataclass
+class ExtendedAuthenticationContext(AuthenticationContext):
+    identity: Identity
+    rules: list[Ruleset]
+    extended_from: AuthenticationContext
+    pass_through: bool
+    
+    async def evaluate(
+        self,
+        actions: set[AccessType],
+        on: Resource
+    ):
+        for rule in self.rules:
+            if not rule.test_resource(on):
+                continue
+            
+            if not actions.issubset(rule.actions):
+                continue
+            
+            match rule.rule:
+                case RuleType.DENY:
+                    logger.warn(f"denied {', '.join(x.value for x in actions)} on {on.resource_name} for {self.identity.name} because ruleset matched")
+                    raise APIForbidden(
+                        message=f"identity {self.identity.name} cannot perform {', '.join(x.value for x in actions)} on {on.resource_name} (matched context ruleset: DENY)"
+                    )
+                case RuleType.ALLOW:
+                    logger.debug(f"allowed {', '.join(x.value for x in actions)} on {on.resource_name} for {self.identity.name} because ruleset matched")
+                    return dummy_context_manager()
+                case RuleType.DEFER:
+                    return await self.extended_from.evaluate(
+                        actions,
+                        on
+                    )
+                case _:
+                    raise Exception(f"invalid ruletype {rule.rule}")
+        
+        if self.pass_through:
+            return await self.extended_from.evaluate(
+                actions,
+                on
+            )
+        else:
+            raise APIForbidden(
+                message=f"identity {self.identity.name} cannot perform {', '.join(x.value for x in actions)} on {on.resource_name} (didn't match any context rulesets)"
+            )
 
 
 class AuthenticationPlugin[C: AuthenticationContext](Protocol):

@@ -1,18 +1,55 @@
 # landtable
 
 > [!NOTE]
-> Landtable is not ready for deployment. Nothing is finalised.
-> No support is given if you try deploy Landtable right now.
+> Landtable is not finished. No support is available. Do not use
+> Landtable right now.
 
-Landtable is a familiar, easy-to-use proxy between your application and your
-database. It provides a simpler interface to your database, so you can prototype
-applications quickly.
+![A diagram of Landtable's architecture](docs/architecture.png)
 
-## Who is Landtable for?
+## What is Landtable?
 
-Landtable is primarily for people that already use products with similar APIs
-and would like to migrate their data. While Landtable aims to be performant,
-handling hundreds of thousands of operations per second is not a goal.
+Landtable is an easy-to-use proxy between your application and your
+database.
+
+### Easily migrate your data
+
+Migrate existing Airtable-based apps to Landtable using the
+**Compatibility API**, and use Airtable as a **database backend**. Then,
+effortlessly move your data off of Airtable with **database replicas**.
+
+Because Landtable uses existing database software, you can always stop
+using Landtable if you want to. **Zero lock-in.**
+
+### Solve compliance problems
+
+With Landtable, you have **complete control over your databases.**
+Choose to host your data wherever you want to comply with local
+regulations.
+
+### Boost productivity across every team
+
+Developers will love the **Landtable IaC** tool to create tables with
+code. With **managed databases**, Landtable can handle creating database
+schemas for you. You'll never have to write SQL again.
+
+### Security, always
+
+Landtable integrates with your existing authentication systems with
+**authentication plugins** and is
+[built from the ground up for security.](docs/concepts.md)
+
+### Built to scale
+
+Built on proven technologies like **etcd**, Landtable fully supports
+**horizontal scaling**.
+
+### In the future
+
+- Let non-technical teams interact with production data with Landtable
+  Web.
+- Use triggers and hooks to connect to external services.
+
+---
 
 ## Get started
 
@@ -182,7 +219,9 @@ Fetched 1 record:
 ## Licensing
 
 Landtable is not open source software. Landtable is licensed under the
-Polyform Perimeter license.
+Polyform Perimeter license. This means that you may not fork Landtable.
+
+This may change in the future.
 
 ## Contributors
 
@@ -190,72 +229,3 @@ Thank you to:
 - [Captainexpo-1](https://github.com/Captainexpo-1) for writing
   [an initial version of the Landtable formula parser](https://github.com/Captainexpo-1/Formula-Parser)
   (and agreeing to license the software under Landtable's license)
-
-## Internals
-
-### Landtable identifier format
-
-Landtable uses a compact UUIDv4 representation (a UUIDv4 without the dashes).
-Landtable identifiers start with:
-- `lrw` for rows,
-- `lfd` for fields,
-- `ltb` for tables,
-- `lwk` for workspaces.
-
-Landtable keys (starting with `lky`) do not have a fixed representation.
-Do not rely on there being one.
-
-### Converting Airtable IDs to Landtable IDs
-
-- cut off the first 3 characters (`recHiMhzCULf9TTF1` -> `HiMhzCULf9TTF1`)
-- decode the rest as base62
-- shuffle the bytes:
-  - first 7 bytes of decoded identifier
-  - 0b00000100
-  - 0b10100000
-  - last 7 bytes of decoded identifier (pad with zero bytes if needed)
-
-### Journey of a request through Landtable
-
-> [!NOTE]
-> There are details not shown in the below diagram.
-> It only aims to provide a high-level overview of how a request travels through
-> Landtable.
-
-```mermaid
-sequenceDiagram
-    participant app as App
-    participant proxy as Landtable Proxy
-    participant worker as Landtable Worker
-    participant etcd
-    participant database as Database
-    participant database2 as Secondary Database
-    
-    app->>+proxy: Put record (name#colon; "Sarah", verified#colon; false) into table ltb#colon;...
-    proxy->>+etcd: Information for table "ltb#colon;..."?
-    etcd->>-proxy: Primary replica ..., secondary replicas ..., automation triggers ...
-    
-    loop for primary and each secondary replica
-        proxy->>+database: INSERT INTO ... VALUES ("Sarah", false)
-        database->>-proxy: OK
-    end
-
-    proxy->>-app: Ok, new record is lrw#colon;...
-    
-    opt has automation linked
-        proxy->>+worker: Run automation, new record ...
-        worker->>+etcd: Automation information?
-        etcd->>-worker: On new record, ...
-        worker->>-worker: Run automation steps
-    end
-
-    opt has delayed secondary replicas
-        proxy->>+worker: Write to delayed secondaries (list of batched writes)
-
-        loop for each delayed secondary replica
-            worker->>+database2: INSERT INTO ... VALUES ("Sarah", false)
-            database2->>-worker: OK
-            deactivate worker
-        end
-    end
-```

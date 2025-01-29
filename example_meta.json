@@ -1,7 +1,15 @@
 {
   "version": 1,
-  "auth_plugins": {
+  "auth": {
     "unsafe_allow_all_requests_i_know_what_i_am_doing": {}
   },
-  "allow_runtime_provisioning": true
+  "provisioning_plugins": [
+    "postgres_provisioning_v0"
+  ],
+  "database_plugins": [
+    "postgres_v0"
+  ],
+  "ext": {
+    "web_allow_provisioning": true
+  }
 }

@@ -6,8 +6,6 @@ from __future__ import annotations
 
 from logging import getLogger
 import os
-from pathlib import Path
-from typing import Annotated
 
 import uvicorn
 import typer

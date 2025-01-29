@@ -25,6 +25,7 @@ LandtableExceptionCode: TypeAlias = Union[
     Literal["INTERNAL_ERROR"],
     Literal["TEMPORARILY_UNAVAILABLE"],
     Literal["UNAUTHORIZED"],
+    Literal["PREDICATE_FAILED"]
 ]
 
 
@@ -34,6 +35,15 @@ class BaseAPIException(Exception):
     type: LandtableExceptionCode = Field(default="INTERNAL_ERROR")
     message: str = Field(default="Unknown exception")
     detail: Any = Field(default=None)
+    
+    def __str__(self):
+        return f"{self.code} {self.type}: {self.message}"
+
+
+@dataclass
+class APIUnavailable(BaseAPIException):
+    code: int = Field(default=503)
+    type: LandtableExceptionCode = Field(default="TEMPORARILY_UNAVAILABLE")
 
 
 @dataclass
@@ -60,3 +70,8 @@ class APIForbidden(BaseAPIException):
     code: int = Field(default=403)
     type: LandtableExceptionCode = Field(default="NOT_ALLOWED")
     message: str = Field(default="You can't do that")
+
+@dataclass
+class APIPredicateFailed(BaseAPIException):
+    code: int = Field(default=412)
+    type: LandtableExceptionCode = Field(default="PREDICATE_FAILED")

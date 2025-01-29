@@ -4,21 +4,21 @@ version = "0.0.1"
 requires-python = ">=3.12"
 dependencies = [
     "asyncpg~=0.30.0",
-    "cuddle~=1.0.6",
     "aetcd~=1.0.0a4",
     "pydantic~=2.10.3",
     "uvicorn~=0.32.1",
     "fastapi~=0.115.6",
     "typer-slim~=0.15.1",
     "click~=8.1.8",
-    "cuddly-dicts~=1.0.1",
     "rich~=13.9.4",
+    "cuddly-dicts~=1.0.1",
+    "pytest-asyncio>=0.25.3",
 ]
 
-[project.entry-points."landtable.backends"]
-postgres = "landtable.backends.postgres_backend:PostgresBackend"
+[project.entry-points."landtable.backends.v0"]
+# postgres = "landtable.backends.postgres_backend:PostgresBackend"
 
-[project.entry-points."landtable.auth"]
+[project.entry-points."landtable.auth.v0"]
 unsafe_allow_all_requests_i_know_what_i_am_doing = "landtable.auth.unsafe:UnsafeAuthenticationPlugin"
 reject = "landtable.auth.reject:RejectAuthenticationPlugin"
 
@@ -29,13 +29,19 @@ landtable = "landtable.__main__:app"
 py-modules = []
 
 [tool.pyright]
-venvPath = "."
-venv = ".venv"
 reportMissingModuleSource = false
 reportUnusedImport = true
 
-[tool.hatch.envs.default]
-path = "./.venv/"
+[project.optional-dependencies]
+tests = [
+    "pytest~=8.3.4",
+    "pytest-cov~=6.0.0",
+    "pytest-asyncio~=0.25.3"
+]
+speedups = [
+    "orjson~=3.10.15",
+    "uvloop~=0.21.0"
+]
 
 [build-system]
 requires = ["hatchling"]
