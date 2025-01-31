@@ -6,7 +6,7 @@ from importlib.metadata import entry_points
 import logging
 from typing import ClassVar, Protocol
 
-from landtable.core.models.transactions import Transaction
+from landtable.core.models.transactions import RowResult, Transaction
 from landtable.core.models.workspaces import TableModel, WorkspaceModel
 
 logger = logging.getLogger(__name__)
@@ -51,11 +51,10 @@ class DatabaseBackend(Protocol):
         workspace: WorkspaceModel,
         table: TableModel,
         transaction: Transaction
-    ):
+    ) -> list[RowResult | list[RowResult]]:
         """
         Execute a transaction. You do not need to validate caller
         permissions in this function.
-
         """
         
         raise NotImplementedError

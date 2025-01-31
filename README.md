@@ -3,6 +3,7 @@
 > [!NOTE]
 > Landtable is not finished. No support is available. Do not use
 > Landtable right now.
+> In particular, some information may be inaccurate.
 
 ![A diagram of Landtable's architecture](docs/architecture.png)
 

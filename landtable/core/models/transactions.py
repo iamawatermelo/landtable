@@ -5,9 +5,10 @@ Transaction models
 from datetime import datetime
 from enum import Enum
 from typing import Annotated, Any, ClassVar, Literal, TypeAlias, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from landtable.auth.abstract import AccessType
+from landtable.core.models.workspaces import FieldModel
 from landtable.formula.formula import Formula
 from landtable.identifiers import FieldIdentifier, RowIdentifier
 
@@ -108,7 +109,7 @@ class BaseOperation(BaseModel):
 
 class ReadOperation(BaseOperation):
     """
-    Read some files. Returns a RowResult.
+    Read some files. Returns a list of RowResult.
     """
     type: Literal["read"]
     access_types: ClassVar = {AccessType.READ}
@@ -137,6 +138,12 @@ class ReadOperation(BaseOperation):
     """
     The fields to return. If None, return all fields.
     """
+    
+    resolved_returned_fields: set[FieldModel] = PrivateAttr()
+    """
+    Cannot be passed through deserialization of a transaction.
+    Resolved set of returned fields.
+    """
 
 
 class WriteOperation(BaseOperation):
@@ -150,15 +157,21 @@ class WriteOperation(BaseOperation):
     """
     The row to be written.
     """
+    
+    resolved_row: dict[FieldModel, Any] = PrivateAttr()
+    """
+    Cannot be passed through deserialization of a transaction.
+    Resolved set of rows.
+    """
 
 
 class UpdateByFormulaOperation(BaseOperation):
     """
-    Update some rows according to a formula. Returns a RowResult with
-    the rows updated.
+    Update some rows according to a formula. Returns a list of RowResult
+    with the rows updated.
     """
     type: Literal["update_by_formula"]
-    access_types: ClassVar = {AccessType.MODIFY}
+    access_types: ClassVar = {AccessType.MODIFY, AccessType.READ}
     
     target: Target
     """
@@ -183,10 +196,10 @@ class UpdateByFormulaOperation(BaseOperation):
 
 class UpdateOperation(BaseOperation):
     """
-    Update some rows. Returns a RowResult with the rows updated.
+    Update some rows. Returns a list of RowResult with the rows updated.
     """
     type: Literal["update"]
-    access_types: ClassVar = {AccessType.MODIFY}
+    access_types: ClassVar = {AccessType.MODIFY, AccessType.READ}
     
     target: Target
     """
@@ -211,10 +224,10 @@ class UpdateOperation(BaseOperation):
 
 class DeleteOperation(BaseOperation):
     """
-    Delete some rows. Returns a RowResult with the rows deleted.
+    Delete some rows. Returns a list of RowResult with the rows deleted.
     """
     type: Literal["delete"]
-    access_types: ClassVar = {AccessType.DELETE}
+    access_types: ClassVar = {AccessType.DELETE, AccessType.READ}
     
     target: Target
     """
@@ -239,10 +252,11 @@ TransactionOperation = Annotated[
 ]
 
 
-class Transaction(BaseModel):
+class TransactionModel(BaseModel):
     """
     A transaction is how you interact with Landtable.
     """
     
     ops: list[TransactionOperation]
-    consistency: Consistency
+    consistency: Consistency = Consistency.RELAXED
+    use_ids: bool = False

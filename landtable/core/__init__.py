@@ -14,13 +14,13 @@ from pydantic import ValidationError
 from landtable.auth.abstract import AccessType, AuthenticationContext, Resource, RuleType, Ruleset
 from landtable.auth.abstract.resources import DatabaseConfigResource, TableRowsResource, WorkspaceAliasesResource, WorkspaceResource
 from landtable.core.backends import DatabaseBackend, find_all_backends
-from landtable.core.error_messages import DATABASE_NOT_FOUND, TABLE_NOT_FOUND, UNAVAILABLE_ETCD, WORKSPACE_NOT_FOUND, WRONG_NAMESPACE
+from landtable.core.error_messages import DATABASE_NOT_FOUND, FIELD_NOT_FOUND, TABLE_NOT_FOUND, UNAVAILABLE_ETCD, WORKSPACE_NOT_FOUND, WRONG_NAMESPACE
 from landtable.core.models.config import ConfigurationModel
 from landtable.core.models.databases import DatabaseModel
-from landtable.core.models.transactions import Transaction
-from landtable.core.models.workspaces import WorkspaceModel
+from landtable.core.models.transactions import ReadOperation, Transaction, WriteOperation
+from landtable.core.models.workspaces import FieldModel, TableModel, WorkspaceModel
 from landtable.exceptions import APIBadRequestException, APIForbidden, APINotFoundException, APIUnavailable
-from landtable.identifiers import DatabaseIdentifier, Identifier, TableIdentifier, WorkspaceIdentifier
+from landtable.identifiers import DatabaseIdentifier, FieldIdentifier, Identifier, TableIdentifier, WorkspaceIdentifier
 
 logger = logging.getLogger(__name__)
 
@@ -366,7 +366,9 @@ class Landtable():
         plugin = self.database_plugins.get(database.plugin)
         
         if plugin is None:
-            return None
+            raise APINotFoundException(message=DATABASE_NOT_FOUND.format(
+                database=database.id
+            ))
         
         instantiated_plugin = plugin(database.config)
         self.instantiated_database_plugins[database.id] = instantiated_plugin
@@ -374,6 +376,35 @@ class Landtable():
         await instantiated_plugin.connect()
         
         return instantiated_plugin
+    
+    def _resolve_field(
+        self,
+        field: FieldIdentifier | str,
+        table: TableModel 
+    ) -> FieldModel:
+        """
+        Given a field or field identifier, find its corresponding field.
+        """
+        
+        if isinstance(field, str):
+            try:
+                field = Identifier.parse_from_ns("lfd", field)
+            except ValueError:
+                pass
+        
+        if isinstance(field, Identifier):
+            maybe_field = table.fields.get(field)
+        else:
+            name_to_field_map = {
+                field.name: field
+                for field in table.fields.values()
+            }
+            maybe_field = name_to_field_map.get(field)
+        
+        if maybe_field is None:
+            raise APINotFoundException(message=f"field {field} does not exist")
+        
+        return maybe_field
     
     @require_auth_context
     async def execute_txn(
@@ -434,8 +465,46 @@ class Landtable():
         
         plugin = await self._resolve_database_plugin(primary_database_config)
         
+        # Copy the transaction model to avoid concurrency bugs when
+        # we modify the transaction model in place
+        transaction = transaction.model_copy(deep=True)
+        table_name_to_field_map = dict()
+        
+        for field_id, field in table_model.fields.items():
+            table_name_to_field_map[field.name] = field
+            field.id = field_id
+        
+        for idx, op in enumerate(transaction.ops):
+            if isinstance(op, ReadOperation):
+                if op.fields is None:
+                    op.resolved_returned_fields = set(table_model.fields.values())
+                    continue
+                
+                fields = set()
+                
+                for field in op.fields:
+                    resolved_field = self._resolve_field(field, table_model)
+                    if resolved_field in fields:
+                        raise APIBadRequestException(
+                            message=f"duplicate field {resolved_field.name}"
+                        )
+                    fields.add(resolved_field)
+                    
+                op.resolved_returned_fields = fields
+            elif isinstance(op, WriteOperation):
+                op.resolved_row = dict()
+                
+                for field, value in op.row.items():
+                    resolved_field = self._resolve_field(field, table_model)
+                    if resolved_field in op.resolved_row.keys():
+                        raise APIBadRequestException(
+                            message=f"duplicate field {resolved_field.name}"
+                        )
+                    
+                    op.resolved_row[resolved_field] = value
+        
         return await plugin.execute_txn(
             workspace=workspace,
-            table=table,
+            table=table_model,
             transaction=transaction
         )

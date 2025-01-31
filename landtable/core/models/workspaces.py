@@ -3,7 +3,7 @@ Workspace models
 """
 
 from typing import Annotated, Literal, TypeAlias, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from landtable.identifiers import DatabaseIdentifier, FieldIdentifier, TableIdentifier, WorkspaceIdentifier
 
@@ -19,15 +19,40 @@ FieldType: TypeAlias = Union[
 
 
 class FieldModel(BaseModel):
+    id: FieldIdentifier = PrivateAttr()
+    """
+    Set when resolving a transaction's fields.
+    """
+    
     name: str
+    """
+    The name of this field.
+    """
+    
     type: FieldType
+    """
+    The type of this field.
+    """
+    
     replica_config: dict[DatabaseIdentifier, dict]
+    """
+    Per-replica configuration for this field.
+    """
+    
     metadata: dict
+    """
+    Arbitrary metadata for this field.
+    """
 
 
 class TableModel(BaseModel):
     """
     A table in Landtable contains your data.
+    """
+    
+    id: FieldIdentifier = PrivateAttr()
+    """
+    Set when resolving a transaction's table.
     """
     
     read_only: bool

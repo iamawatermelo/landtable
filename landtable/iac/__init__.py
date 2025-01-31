@@ -78,5 +78,3 @@ def apply(
             visible=False
         )
         progress.console.log("Loaded configuration files")
-        
-        
