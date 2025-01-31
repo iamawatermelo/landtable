@@ -133,6 +133,28 @@ wheels = [
 ]
 
 [[package]]
+name = "dnspython"
+version = "2.7.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/4a/263763cb2ba3816dd94b08ad3a33d5fdae34ecb856678773cc40a3605829/dnspython-2.7.0.tar.gz", hash = "sha256:ce9c432eda0dc91cf618a5cedf1a4e142651196bbcd2c80e89ed5a907e5cfaf1", size = 345197 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/68/1b/e0a87d256e40e8c888847551b20a017a6b98139178505dc7ffb96f04e954/dnspython-2.7.0-py3-none-any.whl", hash = "sha256:b4c34b7d10b51bcc3a5071e7b8dee77939f1e878477eeecc965e9835f63c6c86", size = 313632 },
+]
+
+[[package]]
+name = "email-validator"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dnspython" },
+    { name = "idna" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/48/ce/13508a1ec3f8bb981ae4ca79ea40384becc868bfae97fd1c942bb3a001b1/email_validator-2.2.0.tar.gz", hash = "sha256:cb690f344c617a714f22e66ae771445a1ceb46821152df8e165c5f9a364582b7", size = 48967 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/ee/bf0adb559ad3c786f12bcbc9296b3f5675f529199bef03e2df281fa1fadb/email_validator-2.2.0-py3-none-any.whl", hash = "sha256:561977c2d73ce3611850a06fa56b414621e0c8faa9d66f2611407d87465da631", size = 33521 },
+]
+
+[[package]]
 name = "fastapi"
 version = "0.115.6"
 source = { registry = "https://pypi.org/simple" }
@@ -144,6 +166,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/93/72/d83b98cd106541e8f5e5bfab8ef2974ab45a62e8a6c5b5e6940f26d2ed4b/fastapi-0.115.6.tar.gz", hash = "sha256:9ec46f7addc14ea472958a96aae5b5de65f39721a46aaf5705c480d9a8b76654", size = 301336 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/52/b3/7e4df40e585df024fac2f80d1a2d579c854ac37109675db2b0cc22c0bb9e/fastapi-0.115.6-py3-none-any.whl", hash = "sha256:e9240b29e36fa8f4bb7290316988e90c381e5092e0cbe84e7818cc3713bcf305", size = 94843 },
+]
+
+[[package]]
+name = "fastui"
+version = "0.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic", extra = ["email"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/87/97/3f001410200256026ff98a4588ec8cb4f3b48bc74a28325e32bfb3b08ffd/fastui-0.7.0.tar.gz", hash = "sha256:08ec1b8437653fc37caaf3dae46566a43dbda3f190c62c43f8f3d063261dd1e8", size = 28950 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/10/44/0122aa71d3074e7674e864a6c67381d8dc244054ebe0380b60fc6c15f6cc/fastui-0.7.0-py3-none-any.whl", hash = "sha256:3e903828b26ecaef2da46e30bbe1123db20cf4a1c32d6c082665f52de9f639d2", size = 28622 },
 ]
 
 [[package]]
@@ -218,8 +252,10 @@ dependencies = [
     { name = "click" },
     { name = "cuddly-dicts" },
     { name = "fastapi" },
+    { name = "fastui" },
     { name = "pydantic" },
     { name = "pytest-asyncio" },
+    { name = "python-multipart" },
     { name = "rich" },
     { name = "typer-slim" },
     { name = "uvicorn" },
@@ -243,12 +279,14 @@ requires-dist = [
     { name = "click", specifier = "~=8.1.8" },
     { name = "cuddly-dicts", specifier = "~=1.0.1" },
     { name = "fastapi", specifier = "~=0.115.6" },
+    { name = "fastui", specifier = "~=0.7.0" },
     { name = "orjson", marker = "extra == 'speedups'", specifier = "~=3.10.15" },
     { name = "pydantic", specifier = "~=2.10.3" },
     { name = "pytest", marker = "extra == 'tests'", specifier = "~=8.3.4" },
-    { name = "pytest-asyncio", specifier = ">=0.25.3" },
+    { name = "pytest-asyncio", specifier = "~=0.25.3" },
     { name = "pytest-asyncio", marker = "extra == 'tests'", specifier = "~=0.25.3" },
     { name = "pytest-cov", marker = "extra == 'tests'", specifier = "~=6.0.0" },
+    { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "rich", specifier = "~=13.9.4" },
     { name = "typer-slim", specifier = "~=0.15.1" },
     { name = "uvicorn", specifier = "~=0.32.1" },
@@ -356,6 +394,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/58/26/82663c79010b28eddf29dcdd0ea723439535fa917fce5905885c0e9ba562/pydantic-2.10.5-py3-none-any.whl", hash = "sha256:4dd4e322dbe55472cb7ca7e73f4b63574eecccf2835ffa2af9021ce113c83c53", size = 431426 },
 ]
 
+[package.optional-dependencies]
+email = [
+    { name = "email-validator" },
+]
+
 [[package]]
 name = "pydantic-core"
 version = "2.27.2"
@@ -442,6 +485,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/be/45/9b538de8cef30e17c7b45ef42f538a94889ed6a16f2387a6c89e73220651/pytest-cov-6.0.0.tar.gz", hash = "sha256:fde0b595ca248bb8e2d76f020b465f3b107c9632e6a1d1705f17834c89dcadc0", size = 66945 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/36/3b/48e79f2cd6a61dbbd4807b4ed46cb564b4fd50a76166b1c4ea5c1d9e2371/pytest_cov-6.0.0-py3-none-any.whl", hash = "sha256:eee6f1b9e61008bd34975a4d5bab25801eb31898b032dd55addc93e96fcaaa35", size = 22949 },
+]
+
+[[package]]
+name = "python-multipart"
+version = "0.0.20"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/87/f44d7c9f274c7ee665a29b885ec97089ec5dc034c7f3fafa03da9e39a09e/python_multipart-0.0.20.tar.gz", hash = "sha256:8dd0cab45b8e23064ae09147625994d090fa46f5b0d1e13af944c331a7fa9d13", size = 37158 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/45/58/38b5afbc1a800eeea951b9285d3912613f2603bdf897a4ab0f4bd7f405fc/python_multipart-0.0.20-py3-none-any.whl", hash = "sha256:8a62d3a8335e06589fe01f2a3e178cdcc632f3fbe0d492ad9ee0ec35aab1f104", size = 24546 },
 ]
 
 [[package]]

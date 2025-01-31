@@ -3,7 +3,18 @@
 > [!NOTE]
 > Landtable is not finished. No support is available. Do not use
 > Landtable right now.
-> In particular, some information may be inaccurate.
+> In particular, some information may be inaccurate and features are
+> missing.
+
+> [!NOTE]
+> This special version of Landtable built for High Seas is licensed
+> under the GNU Affero General Public License.
+> https://www.gnu.org/licenses/agpl-3.0.en.html#license-text
+> 
+> This license does not apply to any other Landtable versions, past or
+> present, unless specifically stated in that version's LICENSE file.
+
+---
 
 ![A diagram of Landtable's architecture](docs/architecture.png)
 

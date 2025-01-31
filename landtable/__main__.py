@@ -20,7 +20,7 @@ app.add_typer(iac, name="iac")
 @app.command()
 def serve():
     # move API import here to reduce start times
-    from landtable.api import Landtable
+    from landtable.api import LandtableASGI
     
     try:
         import uvloop as asyncio
@@ -29,7 +29,7 @@ def serve():
         import asyncio
 
     server = uvicorn.Server(
-        uvicorn.Config(app=Landtable(), port=int(os.environ.get("PORT", 8080)))
+        uvicorn.Config(app=LandtableASGI(), port=int(os.environ.get("PORT", 8080)))
     )
 
     asyncio.run(server.serve())

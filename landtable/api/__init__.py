@@ -14,12 +14,19 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi import Request
 from starlette.responses import JSONResponse
+from starlette.staticfiles import StaticFiles
 
-from .legacy import legacy_router
-from .transactions import transaction_router
+from landtable.core.models.config import ConfigurationModel
+
+# from .legacy import legacy_router
+# from .transactions import transaction_router
+from .highseas import app as highseas_router
 from landtable.exceptions import BaseAPIException
-from landtable.state import LandtableState
+from landtable.core import Landtable
 from landtable.tracing import Tracer
+from . import hs_assets
+
+import importlib.resources as resources
 
 logger = getLogger(__name__)
 
@@ -41,28 +48,22 @@ class TracingResponse(JSONResponse):
         return super().render(content)
 
 
-def Landtable():
+def LandtableASGI():
     basicConfig(level="DEBUG")
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         tracer = Tracer()
 
-        with tracer.trace("app startup"):
-            app.state.landtable = LandtableState("etcd://localhost:2379")
-            await app.state.landtable.connect()
+        app.state.landtable = Landtable(ConfigurationModel())
 
-        tracer.finish()
-        logger.debug(f"Trace for app startup: {tracer.compute_json_trace()}")
+        async with app.state.landtable.enter():
+            yield
 
-        yield
-
-        await app.state.landtable.shutdown()
-
-    app = FastAPI(lifespan=lifespan, default_response_class=TracingResponse)
-
-    app.include_router(legacy_router)
-    app.include_router(transaction_router)
+    app = FastAPI(lifespan=lifespan) #, default_response_class=TracingResponse)
+    assets = resources.as_file(resources.files(hs_assets)).__enter__()
+    app.mount("/static", StaticFiles(directory=assets, html=True))
+    app.include_router(highseas_router)
 
     @app.middleware("http")
     async def middleware(request: Request, call_next):

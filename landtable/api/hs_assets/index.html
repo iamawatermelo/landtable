@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<head>
+<meta name="viewport" content="width=device-width">
+<script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+<h1>Example Landtable Application</h1>
+<p>
+    Landtable is a database proxy designed to make developing applications easier.
+    It's not finished yet, but you can play with a demo here.
+    Note that this Landtable workspace uses an in-memory database, so your
+    data will not be stored forever.
+</p>
+<p>First, you should go read the <a href="https://github.com/iamawatermelo/landtable/tree/hs-demo">README.md</a> to find out how it works.</p>
+<p>Below is an example database for you to play with.</p>
+
+<form>
+    <h2>Submit a new record</h2>
+    <label><input type="text" name="name" required/> Name (required)</label><br>
+    <label><input type="email" name="email" required/> Email (required)</label><br>
+    <label><input type="text" name="comments"/> Comments</label><br>
+    <input type="submit" hx-post="/hs/write-record" />
+</form>
+
+<form >
+    <h2>Delete a record</h2>
+    <label><input type="text" required/> ID (required)</label><br>
+    <input type="submit" hx-post="/hs/delete-record" />
+</form>
+
+<h2>All records</h2>
+<div hx-trigger="revealed" hx-get="/hs/load-db" hx-swap="innerHTML">
+    Loading...
+</div>
+</body>

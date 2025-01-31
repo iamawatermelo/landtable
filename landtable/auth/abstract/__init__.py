@@ -8,7 +8,7 @@ Authentication module protocols.
 # license version 1.0.1. See the LICENSE.md for more information.
 from __future__ import annotations
 
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import Enum

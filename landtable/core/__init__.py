@@ -5,19 +5,19 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import logging
-from json import JSONDecodeError, loads, dumps
+from json import JSONDecodeError, loads
 from time import monotonic
 import aetcd
 from typing import Callable
 
 from pydantic import ValidationError
-from landtable.auth.abstract import AccessType, AuthenticationContext, Resource, RuleType, Ruleset
+from landtable.auth.abstract import AccessType, AuthenticationContext, RuleType, Ruleset
 from landtable.auth.abstract.resources import DatabaseConfigResource, TableRowsResource, WorkspaceAliasesResource, WorkspaceResource
 from landtable.core.backends import DatabaseBackend, find_all_backends
-from landtable.core.error_messages import DATABASE_NOT_FOUND, FIELD_NOT_FOUND, TABLE_NOT_FOUND, UNAVAILABLE_ETCD, WORKSPACE_NOT_FOUND, WRONG_NAMESPACE
+from landtable.core.error_messages import DATABASE_NOT_FOUND, TABLE_NOT_FOUND, UNAVAILABLE_ETCD, WORKSPACE_NOT_FOUND, WRONG_NAMESPACE
 from landtable.core.models.config import ConfigurationModel
 from landtable.core.models.databases import DatabaseModel
-from landtable.core.models.transactions import ReadOperation, Transaction, WriteOperation
+from landtable.core.models.transactions import ReadOperation, TransactionModel, WriteOperation
 from landtable.core.models.workspaces import FieldModel, TableModel, WorkspaceModel
 from landtable.exceptions import APIBadRequestException, APIForbidden, APINotFoundException, APIUnavailable
 from landtable.identifiers import DatabaseIdentifier, FieldIdentifier, Identifier, TableIdentifier, WorkspaceIdentifier
@@ -25,7 +25,7 @@ from landtable.identifiers import DatabaseIdentifier, FieldIdentifier, Identifie
 logger = logging.getLogger(__name__)
 
 try:
-    from orjson import JSONDecodeError, loads, dumps
+    from orjson import JSONDecodeError, loads
 except ImportError:
     logger.warn("orjson is not available (pip install landtable[speedups])")
 
@@ -116,6 +116,7 @@ class Landtable():
         self.workspaces = dict()
         self.workspace_aliases = dict()
         self.database_plugins = find_all_backends()
+        self.instantiated_database_plugins = dict()
     
     @require_no_auth_context
     async def _etcd_replicate_task(self):
@@ -366,9 +367,8 @@ class Landtable():
         plugin = self.database_plugins.get(database.plugin)
         
         if plugin is None:
-            raise APINotFoundException(message=DATABASE_NOT_FOUND.format(
-                database=database.id
-            ))
+            logging.error(f"plugin {database.plugin} doesn't exixt")
+            raise LandtableInternalException(f"plugin {database.plugin} doesn't exist")
         
         instantiated_plugin = plugin(database.config)
         self.instantiated_database_plugins[database.id] = instantiated_plugin
@@ -411,7 +411,7 @@ class Landtable():
         self,
         workspace: WorkspaceModel,
         table: TableIdentifier,
-        transaction: Transaction
+        transaction: TransactionModel
     ):
         """
         Execute a transaction on a workspace table.
@@ -445,6 +445,8 @@ class Landtable():
                     table=table
                 )
             )
+            
+        table_model._id = table
         
         # SECURITY: Allow fetching the database configuration even if
         # the user can't access it. It is ensured that the database
@@ -472,12 +474,12 @@ class Landtable():
         
         for field_id, field in table_model.fields.items():
             table_name_to_field_map[field.name] = field
-            field.id = field_id
+            field._id = field_id
         
         for idx, op in enumerate(transaction.ops):
             if isinstance(op, ReadOperation):
                 if op.fields is None:
-                    op.resolved_returned_fields = set(table_model.fields.values())
+                    op._resolved_returned_fields = set(table_model.fields.values())
                     continue
                 
                 fields = set()
@@ -490,18 +492,18 @@ class Landtable():
                         )
                     fields.add(resolved_field)
                     
-                op.resolved_returned_fields = fields
+                op._resolved_returned_fields = fields
             elif isinstance(op, WriteOperation):
-                op.resolved_row = dict()
+                op._resolved_row = dict()
                 
                 for field, value in op.row.items():
                     resolved_field = self._resolve_field(field, table_model)
-                    if resolved_field in op.resolved_row.keys():
+                    if resolved_field in op._resolved_row.keys():
                         raise APIBadRequestException(
                             message=f"duplicate field {resolved_field.name}"
                         )
                     
-                    op.resolved_row[resolved_field] = value
+                    op._resolved_row[resolved_field] = value
         
         return await plugin.execute_txn(
             workspace=workspace,

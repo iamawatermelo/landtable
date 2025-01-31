@@ -6,14 +6,14 @@ from importlib.metadata import entry_points
 import logging
 from typing import ClassVar, Protocol
 
-from landtable.core.models.transactions import RowResult, Transaction
+from landtable.core.models.transactions import RowResult
 from landtable.core.models.workspaces import TableModel, WorkspaceModel
 
 logger = logging.getLogger(__name__)
 
 
 def find_all_backends() -> dict[str, type[DatabaseBackend]]:
-    discovered_plugins = entry_points(group="landtable.backends.v0")
+    discovered_plugins = entry_points(group="landtable.backends")
     logger.info(f"Discovered {len(discovered_plugins)} plugins")
     
     return {

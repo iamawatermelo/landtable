@@ -114,9 +114,9 @@ class ReadOperation(BaseOperation):
     type: Literal["read"]
     access_types: ClassVar = {AccessType.READ}
     
-    target: Target
+    target: Target | None
     """
-    The rows to be read.
+    The rows to be read. If None, return all rows.
     """
     
     sort: Formula | FieldIdentifier | None = None
@@ -139,7 +139,7 @@ class ReadOperation(BaseOperation):
     The fields to return. If None, return all fields.
     """
     
-    resolved_returned_fields: set[FieldModel] = PrivateAttr()
+    _resolved_returned_fields: set[FieldModel] = PrivateAttr()
     """
     Cannot be passed through deserialization of a transaction.
     Resolved set of returned fields.
@@ -158,7 +158,7 @@ class WriteOperation(BaseOperation):
     The row to be written.
     """
     
-    resolved_row: dict[FieldModel, Any] = PrivateAttr()
+    _resolved_row: dict[FieldModel, Any] = PrivateAttr()
     """
     Cannot be passed through deserialization of a transaction.
     Resolved set of rows.

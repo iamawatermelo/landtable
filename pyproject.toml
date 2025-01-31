@@ -12,13 +12,16 @@ dependencies = [
     "click~=8.1.8",
     "rich~=13.9.4",
     "cuddly-dicts~=1.0.1",
-    "pytest-asyncio>=0.25.3",
+    "pytest-asyncio~=0.25.3",
+    "fastui~=0.7.0",
+    "python-multipart>=0.0.20",
 ]
 
-[project.entry-points."landtable.backends.v0"]
+[project.entry-points."landtable.backends"]
 # postgres = "landtable.backends.postgres_backend:PostgresBackend"
+in_memory_v0 = "landtable.backends.in_memory:InMemoryDatabaseBackend"
 
-[project.entry-points."landtable.auth.v0"]
+[project.entry-points."landtable.auth"]
 unsafe_allow_all_requests_i_know_what_i_am_doing = "landtable.auth.unsafe:UnsafeAuthenticationPlugin"
 reject = "landtable.auth.reject:RejectAuthenticationPlugin"
 
