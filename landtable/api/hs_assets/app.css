@@ -1,3 +1,36 @@
 * {
     font-family: system-ui, sans-serif
 }
+
+.grecaptcha-badge { 
+    visibility: hidden !important;
+}
+
+body {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1em;
+    padding: 2em;
+}
+
+body > div {
+    width: 100%;
+    flex: 1 1 24em;
+}
+
+label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+    max-width: 16em;
+}
+
+td, th {
+    padding: 0.2em;
+    text-align: start;
+}
+
+.error {
+    color: red;
+}

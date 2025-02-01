@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from pydantic.dataclasses import dataclass
 from landtable.core.backends import DatabaseBackend
-from landtable.core.models.transactions import ReadOperation, RowResult, RowTarget, Target, TransactionModel, TransactionOperation, WriteOperation
+from landtable.core.models.transactions import DeleteOperation, ReadOperation, RowResult, RowTarget, Target, TransactionModel, TransactionOperation, WriteOperation
 from landtable.core.models.workspaces import FieldModel, TableModel, WorkspaceModel
 from landtable.exceptions import APIPredicateFailed
 from landtable.identifiers import FieldIdentifier, Identifier, RowIdentifier, TableIdentifier, WorkspaceIdentifier
@@ -106,6 +106,22 @@ class InMemoryDatabaseBackend(DatabaseBackend):
                 row=table[new_id].row,
                 created_at=table[new_id].created_at
             )
+        
+        if isinstance(operation, DeleteOperation):
+            result = self.resolve_targeted_fields(
+                operation.target,
+                operation._resolved_returned_fields,
+                use_ids,
+                table
+            )
+            
+            if operation.fail is not None and not operation.fail.evaluate(len(result)):
+                raise APIPredicateFailed(message="delete operation has failed a predicate")
+            
+            for row in result:
+                del table[row.id]
+            
+            return result
         
         raise NotImplementedError()
     

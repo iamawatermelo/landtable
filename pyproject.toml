@@ -15,6 +15,7 @@ dependencies = [
     "pytest-asyncio~=0.25.3",
     "fastui~=0.7.0",
     "python-multipart>=0.0.20",
+    "aiohttp>=3.11.11",
 ]
 
 [project.entry-points."landtable.backends"]

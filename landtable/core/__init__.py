@@ -17,7 +17,7 @@ from landtable.core.backends import DatabaseBackend, find_all_backends
 from landtable.core.error_messages import DATABASE_NOT_FOUND, TABLE_NOT_FOUND, UNAVAILABLE_ETCD, WORKSPACE_NOT_FOUND, WRONG_NAMESPACE
 from landtable.core.models.config import ConfigurationModel
 from landtable.core.models.databases import DatabaseModel
-from landtable.core.models.transactions import ReadOperation, TransactionModel, WriteOperation
+from landtable.core.models.transactions import DeleteOperation, ReadOperation, TransactionModel, WriteOperation
 from landtable.core.models.workspaces import FieldModel, TableModel, WorkspaceModel
 from landtable.exceptions import APIBadRequestException, APIForbidden, APINotFoundException, APIUnavailable
 from landtable.identifiers import DatabaseIdentifier, FieldIdentifier, Identifier, TableIdentifier, WorkspaceIdentifier
@@ -229,8 +229,6 @@ class Landtable():
         caller must have AccessType.READ permissions on
         WorkspaceAliasesResource().
         """
-        ctx = AuthenticationContext.from_context()
-        
         if isinstance(workspace, str):
             try:
                 workspace = Identifier.parse_from(workspace)
@@ -477,7 +475,7 @@ class Landtable():
             field._id = field_id
         
         for idx, op in enumerate(transaction.ops):
-            if isinstance(op, ReadOperation):
+            if isinstance(op, (ReadOperation, DeleteOperation)):
                 if op.fields is None:
                     op._resolved_returned_fields = set(table_model.fields.values())
                     continue

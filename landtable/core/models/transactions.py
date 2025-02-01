@@ -238,6 +238,17 @@ class DeleteOperation(BaseOperation):
     """
     When this operation should fail.
     """
+    
+    fields: set[FieldIdentifier | str] | None = None
+    """
+    The fields to return. If None, return all fields.
+    """
+    
+    _resolved_returned_fields: set[FieldModel] = PrivateAttr()
+    """
+    Cannot be passed through deserialization of a transaction.
+    Resolved set of returned fields.
+    """
 
 
 TransactionOperation = Annotated[

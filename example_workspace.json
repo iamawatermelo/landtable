@@ -3,20 +3,6 @@
   "name": "High Seas",
   "id": "lwk:eeaf52e770ed41f37e31a8ea738d46db",
   "primary": "ldb:76fc69a773b04da77cd792faac2a5531",
-  "secondary": {
-    "ldb:76fc69a773b04da77cd792faac2a5531": {
-      "action": "replicate_immediate"
-    },
-    "ldb:76fc69a773b04da77cd792faac2a5532": {
-      "action": "defer",
-      "batch_ms": 2000
-    },
-    "ldb:76fc69a773b04da77cd792faac2a5533": {
-      "action": "defer_elect",
-      "local_batch_ms": 500,
-      "remote_batch_ms": 2000
-    }
-  },
   "tables": {
     "ltb:743d16834d574a11cd5d4425bf60c223": {
       "read_only": false,

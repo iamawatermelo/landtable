@@ -1,12 +1,6 @@
 # landtable
 
 > [!NOTE]
-> Landtable is not finished. No support is available. Do not use
-> Landtable right now.
-> In particular, some information may be inaccurate and features are
-> missing.
-
-> [!NOTE]
 > This special version of Landtable built for High Seas is licensed
 > under the GNU Affero General Public License.
 > https://www.gnu.org/licenses/agpl-3.0.en.html#license-text
@@ -14,7 +8,101 @@
 > This license does not apply to any other Landtable versions, past or
 > present, unless specifically stated in that version's LICENSE file.
 
+Landtable is a work-in-progress database proxy between your application
+and your database.
+
+## About Landtable
+
+Landtable's internal state is configured with JSON. Normally, you shouldn't
+have to write JSON, but you can if you want to tinker with the internals.
+It's not too hard. Here's the configuration file for the demo workspace:
+
+```
+{
+  "version": 1,
+  "name": "High Seas",
+  "id": "lwk:eeaf52e770ed41f37e31a8ea738d46db",
+  "primary": "ldb:76fc69a773b04da77cd792faac2a5531",
+  "tables": {
+    "ltb:743d16834d574a11cd5d4425bf60c223": {
+      "read_only": false,
+      "name": "People",
+      "description": "bweh :3",
+      "fields": {
+        "lfd:e0e4b50fc9bd2ed5cf92c181e3e96315": {
+          "name": "Name",
+          "type": "text",
+          "replica_config": {},
+          "metadata": {}
+        },
+        "lfd:189d36ae473af701c30dcbb027976b7e": {
+          "name": "Email",
+          "type": "text",
+          "replica_config": {},
+          "metadata": {}
+        },
+        "lfd:dc58aaf0144d5b176caae79280a02d81": {
+          "name": "Comment",
+          "type": "text",
+          "replica_config": {},
+          "metadata": {}
+        }
+      },
+      "replica_config": {
+        "ldb:76fc69a773b04da77cd792faac2a5531": {
+          "table_name": "people",
+          "id_column": "id",
+          "created_at_column": "created_at"
+        }
+      },
+      "metadata": {}
+    }
+  },
+  "aliases": {
+    "people": "ltb:743d16834d574a11cd5d4425bf60c223"
+  },
+  "replica_config": {}
+}
+```
+
+All of those big numbers and letters are **identifiers.** They are a randomly
+generated ID with a namespace (the "ltb:" part) attached to them.
+
+Databases and workspaces are defined separately so multiple workspaces
+can share the same databases. Again, here's the configuration file for
+the demo workspace:
+
+```
+{
+  "version": 1,
+  "id": "ldb:76fc69a773b04da77cd792faac2a5531",
+  "name": "High Seas",
+  "description": "High Seas demo database",
+  "plugin": "in_memory_v0",
+  "comment": "",
+  "config": {},
+  "revision": 0,
+  "management": {}
+}
+```
+
+## Development
+
+Landtable was developed over the few months with the goal of being able to
+provide a familiar interface over Airtable. You can look at this progress in
+the `#airtable` channel in the Hack Club Slack. While I did not manage to
+build every feature I wanted in the High Seas time, I plan to work on it
+further in the future.
+
 ---
+
+# landtable
+
+> [!NOTE]
+> Landtable is not finished. No support is available. Do not use
+> Landtable right now.
+> In particular, some information may be inaccurate and features are
+> missing.
 
 ![A diagram of Landtable's architecture](docs/architecture.png)
 
