@@ -2,14 +2,26 @@
 
 > [!NOTE]
 > This special version of Landtable built for High Seas is licensed
-> under the GNU Affero General Public License.
-> https://www.gnu.org/licenses/agpl-3.0.en.html#license-text
+> under the
+> [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.en.html#license-text). 
 > 
 > This license does not apply to any other Landtable versions, past or
 > present, unless specifically stated in that version's LICENSE file.
 
 Landtable is a work-in-progress database proxy between your application
 and your database.
+
+## Features
+
+- State is stored in etcd, allowing quick reconfiguration of the proxy and
+  simple horizontal scaling.
+- Pluggable architecture means you can write your own database plugins.
+- Authentication plugins and authentication contexts ensure proper
+  authorisation.
+
+[Learn about the architecture of Landtable.](https://github.com/iamawatermelo/landtable/blob/hs-demo/docs/concepts.md)
+
+![Diagram of the Landtable architecture](https://raw.githubusercontent.com/iamawatermelo/landtable/refs/heads/hs-demo/docs/architecture.png)
 
 ## About Landtable
 
@@ -94,7 +106,11 @@ the `#airtable` channel in the Hack Club Slack. While I did not manage to
 build every feature I wanted in the High Seas time, I plan to work on it
 further in the future.
 
-**Below is the original README.md from the main branch.**
+Landtable was a great learning experience and it taught me a lot about
+application architecture and building scalable, extensible applications. 
+
+**Below is the original README.md from the main branch. Note that
+most features listed do not exist yet.**
 
 ---
 
