@@ -21,8 +21,6 @@ class ModelSerializationError(Exception):
 def serialize_model_bytes(
     model: BaseModel
 ) -> bytes:
-
-
     if orjson is not None:
         return orjson.dumps(model.dict())
     else:

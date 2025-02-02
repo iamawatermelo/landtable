@@ -6,7 +6,7 @@ from importlib.metadata import entry_points
 import logging
 from typing import ClassVar, Protocol
 
-from landtable.core.models.transactions import RowResult
+from landtable.core.models.transactions import RowResult, TransactionModel
 from landtable.core.models.workspaces import TableModel, WorkspaceModel
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class DatabaseBackend(Protocol):
         self,
         workspace: WorkspaceModel,
         table: TableModel,
-        transaction: Transaction
+        transaction: TransactionModel
     ) -> list[RowResult | list[RowResult]]:
         """
         Execute a transaction. You do not need to validate caller

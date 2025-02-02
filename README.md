@@ -94,6 +94,8 @@ the `#airtable` channel in the Hack Club Slack. While I did not manage to
 build every feature I wanted in the High Seas time, I plan to work on it
 further in the future.
 
+**Below is the original README.md from the main branch.**
+
 ---
 
 # landtable
