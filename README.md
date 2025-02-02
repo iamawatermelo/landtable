@@ -29,7 +29,7 @@ Landtable's internal state is configured with JSON. Normally, you shouldn't
 have to write JSON, but you can if you want to tinker with the internals.
 It's not too hard. Here's the configuration file for the demo workspace:
 
-```
+```json
 {
   "version": 1,
   "name": "High Seas",
@@ -84,7 +84,7 @@ Databases and workspaces are defined separately so multiple workspaces
 can share the same databases. Again, here's the configuration file for
 the demo workspace:
 
-```
+```json
 {
   "version": 1,
   "id": "ldb:76fc69a773b04da77cd792faac2a5531",
@@ -181,7 +181,7 @@ need these services **running** on your computer:
 
 First, we'll start a Landtable instance.
 
-```
+```sh
 landtable &
 ```
 
@@ -316,7 +316,7 @@ Provisioned in 2041 ms
 
 And we're done! Let's insert a table to make sure everything works:
 
-```
+```sh
 $ landtable exec put hs \
     --endpoint http://localhost:5963 \
     --record '{"first_name": "Sarah", "last_name": "C", "email": "sarah@example.com"}'
