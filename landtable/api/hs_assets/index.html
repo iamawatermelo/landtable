@@ -4,83 +4,94 @@
 <script src="https://www.google.com/recaptcha/api.js"></script>
 <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="/static/app.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300..800&display=swap" rel="stylesheet">
 </head>
 <body>
-<div>
-    <h1>Example Landtable Application</h1>
-    <p>
-        Landtable is a database proxy designed to make developing applications easier.
-        It's not finished yet, but you can play with a demo here.
-        Note that this Landtable workspace uses an in-memory database, so your
-        data will not be stored forever.
-    </p>
-    <p>
-        This demo was built with:
-    </p>
-    <ul>
-        <li>Landtable Core</li>
-        <li>FastAPI</li>
-        <li>htmx</li>
-        <li>Perspective API</li>
-        <li>Tears</li>
-    </ul>
-    <p>
-        You should go read the
-        <a href="https://github.com/iamawatermelo/landtable/tree/hs-demo">README.md</a>
-        to find out more about how Landtable works and how it may be useful to you
-        in the future.
-    </p>
-    <p>Below is an example Landtable table for you to play with.</p>
-    <p>
-        This site is protected by reCAPTCHA and the Google
-        <a href="https://policies.google.com/privacy">Privacy Policy</a> and
-        <a href="https://policies.google.com/terms">Terms of Service</a> apply.
-    </p>
-    
-    <form
-        id="write-record-form"
-        hx-post="/hs/write-record"
-        hx-trigger="verified"
-        hx-target="#write-record-form > .error"
-        hx-swap="innerHTML">
-        <h2>Create a new row</h2>
-        <p class="error"></p>
-        <label>Name (required) <input type="text" name="name" required/></label><br>
-        <label>Email (required) <input type="email" name="email" required/></label><br>
-        <label>Comments <input type="text" name="comments"/></label><br>
-        <button
-            type="submit"
-            class="g-recaptcha"
-            data-sitekey="6LddFMoqAAAAAFpgj73F_u7ZtkDkfYtvUd2xwpSQ"
-            data-callback="writeRow">
-            Submit
-        </button>
-    </form>
-    
-    <form
-        id="delete-record-form"
-        hx-post="/hs/delete-record"
-        hx-trigger="verifyDeleted"
-        hx-target="#delete-record-form > .error"
-        hx-swap="innerHTML">
-        <h2>Delete a row</h2>
-        <p class="error"></p>
-        <label>ID (required) <input type="text" name="row_id" required/></label><br>
-        <button
-            type="submit"
-            class="g-recaptcha"
-            data-sitekey="6LddFMoqAAAAAFpgj73F_u7ZtkDkfYtvUd2xwpSQ"
-            data-callback="deleteRow">
-            Submit
-        </button>
-    </form>
-</div>
-<div>
-    <h2>All rows</h2>
-    <div hx-trigger="revealed" hx-get="/hs/load-db" hx-swap="innerHTML">
-        Loading...
+<p class="landtable">landtable</p>
+<main>
+    <div>
+        <h1>Example Landtable Application</h1>
+        <p>
+            Landtable is a database proxy designed to make developing applications easier.
+            It's not finished yet, but you can play with a demo here.
+            Note that this Landtable workspace uses an in-memory database, so your
+            data will not be stored forever.
+        </p>
+        <p>
+            This demo was built with:
+        </p>
+        <ul>
+            <li>Landtable Core</li>
+            <li>FastAPI</li>
+            <li>htmx</li>
+            <li>Perspective API</li>
+            <li>Tears</li>
+        </ul>
+        <p>
+            You should go read the
+            <a href="https://github.com/iamawatermelo/landtable/tree/hs-demo">README.md</a>
+            to find out more about how Landtable works and how it may be useful to you
+            in the future.
+        </p>
+        <p>
+            You can also look at the
+            <a href="https://landtable-website.pages.dev/">marketing website</a>
+            that was created for Landtable.
+        </p>
+        <p>Below is an example Landtable table for you to play with.</p>
+        <p>
+            This site is protected by reCAPTCHA and the Google
+            <a href="https://policies.google.com/privacy">Privacy Policy</a> and
+            <a href="https://policies.google.com/terms">Terms of Service</a> apply.
+        </p>
+        
+        <form
+            id="write-record-form"
+            hx-post="/hs/write-record"
+            hx-trigger="verified"
+            hx-target="#write-record-form > .error"
+            hx-swap="innerHTML">
+            <h2>Create a new row</h2>
+            <p class="error"></p>
+            <label>Name (required) <input type="text" name="name" required/></label><br>
+            <label>Email (required) <input type="email" name="email" required/></label><br>
+            <label>Comments <input type="text" name="comments"/></label><br>
+            <button
+                type="submit"
+                class="g-recaptcha"
+                data-sitekey="6LddFMoqAAAAAFpgj73F_u7ZtkDkfYtvUd2xwpSQ"
+                data-callback="writeRow">
+                Submit
+            </button>
+        </form>
+        
+        <form
+            id="delete-record-form"
+            hx-post="/hs/delete-record"
+            hx-trigger="verifyDeleted"
+            hx-target="#delete-record-form > .error"
+            hx-swap="innerHTML">
+            <h2>Delete a row</h2>
+            <p class="error"></p>
+            <label>ID (required) <input type="text" name="row_id" required/></label><br>
+            <button
+                type="submit"
+                class="g-recaptcha"
+                data-sitekey="6LddFMoqAAAAAFpgj73F_u7ZtkDkfYtvUd2xwpSQ"
+                data-callback="deleteRow">
+                Submit
+            </button>
+        </form>
     </div>
-</div>
+    <div>
+        <h2>All rows</h2>
+        <div hx-trigger="revealed" hx-get="/hs/load-db" hx-swap="innerHTML">
+            Loading...
+        </div>
+    </div>
+</main>
 <script>
   function writeRow(){
     const event = new Event('verified');
