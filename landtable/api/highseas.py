@@ -146,10 +146,11 @@ async def htmx_write_record(
             response.raise_for_status()
             result = await response.json()
             if len(result.get("attributeScores", [])) != 0:
-                scores = result["attributeScores"]
+                # scores = result["attributeScores"]
                 return HTMLResponse(
                     status_code=200,
-                    content=f"<p>Sorry, Google thinks that's: {", ".join(f"{k} ({int(v["summaryScore"]["value"]*100)}%)" for k, v in scores.items())}</p>"
+                    #content=f"<p>Sorry, Google thinks that's: {", ".join(f"{k} ({int(v["summaryScore"]["value"]*100)}%)" for k, v in scores.items())}</p>"
+                    content="<p>Sorry, Google thinks that's inappropriate. Try something else.</p>"
                 )
     
     with auth.enter():
