@@ -98,11 +98,28 @@ the demo workspace:
 }
 ```
 
+Landtable uses a defense-in-depth strategy by using authentication contexts
+to validate the caller's permissions at multiple steps throught the program.
+This helps make Landtable more secure.
+
+As an example of this, here's some debug output from the demo:
+
+```
+Feb 03 01:36:58 nest landtable[1226695]: DEBUG:root:allowed read on aliases for anonymous
+Feb 03 01:36:58 nest landtable[1226695]: DEBUG:root:allowed read on lwk:eeaf52e770ed41f37e31a8ea738d46db for anonymous
+Feb 03 01:36:58 nest landtable[1226695]: DEBUG:root:allowed read on rows of ltb:743d16834d574a11cd5d4425bf60c223 for anonymous
+Feb 03 01:36:58 nest landtable[1226695]: DEBUG:root:created new extended identity for anonymous
+Feb 03 01:36:58 nest landtable[1226695]: DEBUG:root:allowed read on databases for anonymous because ruleset matched
+```
+
+Of course, the demo has authentication turned off so that you can actually
+use it.
+
 ## Development
 
 Landtable was developed over the few months with the goal of being able to
 provide a familiar interface over Airtable. You can look at this progress in
-the `#airtable` channel in the Hack Club Slack. While I did not manage to
+the `#landtable` channel in the Hack Club Slack. While I did not manage to
 build every feature I wanted in the High Seas time, I plan to work on it
 further in the future.
 
