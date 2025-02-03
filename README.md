@@ -104,7 +104,7 @@ This helps make Landtable more secure.
 
 As an example of this, here's some debug output from the demo:
 
-```
+```sh
 Feb 03 01:36:58 nest landtable[1226695]: DEBUG:root:allowed read on aliases for anonymous
 Feb 03 01:36:58 nest landtable[1226695]: DEBUG:root:allowed read on lwk:eeaf52e770ed41f37e31a8ea738d46db for anonymous
 Feb 03 01:36:58 nest landtable[1226695]: DEBUG:root:allowed read on rows of ltb:743d16834d574a11cd5d4425bf60c223 for anonymous
