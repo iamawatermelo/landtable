@@ -13,13 +13,15 @@ and your database.
 
 ## Features
 
-- State is stored in etcd, allowing quick reconfiguration of the proxy and
-  simple horizontal scaling.
-- Pluggable architecture means you can write your own database plugins.
+- State is stored in a distributed, battle-tested, consistent data store
+  (etcd, which is what Kubernetes uses) allowing quick reconfiguration
+  of the proxy and simple horizontal scaling.
+- Pluggable architecture means you can write your own database plugins
+  with Python standards-compliant packaging tooling.
 - Authentication plugins and authentication contexts ensure proper
   authorisation.
 
-[Learn about the architecture of Landtable.](https://github.com/iamawatermelo/landtable/blob/hs-demo/docs/concepts.md)
+[Learn about the architecture of Landtable and its internals.](https://github.com/iamawatermelo/landtable/blob/hs-demo/docs/concepts.md)
 
 ![Diagram of the Landtable architecture](https://raw.githubusercontent.com/iamawatermelo/landtable/refs/heads/hs-demo/docs/architecture.png)
 
@@ -98,6 +100,8 @@ the demo workspace:
 }
 ```
 
+## Security
+
 Landtable uses a defense-in-depth strategy by using authentication contexts
 to validate the caller's permissions at multiple steps throught the program.
 This helps make Landtable more secure.
@@ -117,11 +121,11 @@ use it.
 
 ## Development
 
-Landtable was developed over the few months with the goal of being able to
-provide a familiar interface over Airtable. You can look at this progress in
-the `#landtable` channel in the Hack Club Slack. While I did not manage to
-build every feature I wanted in the High Seas time, I plan to work on it
-further in the future.
+Landtable was developed over a few months with the goal of being able to
+provide a familiar interface over a real database, like Postgres instead
+of Airtable. You can look at this progress in the `#landtable` channel in
+the Hack Club Slack. While I did not manage to build every feature I wanted
+in the High Seas time, I plan to work on it further in the future.
 
 Landtable was a great learning experience and it taught me a lot about
 application architecture and building scalable, extensible applications. 
