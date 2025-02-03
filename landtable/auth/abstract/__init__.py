@@ -8,7 +8,7 @@ Authentication module protocols.
 # license version 1.0.1. See the LICENSE.md for more information.
 from __future__ import annotations
 
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import Enum
@@ -23,7 +23,7 @@ from starlette.responses import Response
 from starlette.types import ASGIApp
 
 if TYPE_CHECKING:
-    from landtable.state import LandtableState
+    from landtable.core import Landtable
     from landtable.auth import AuthenticationPluginResolver
 
 logger = logging.getLogger()
@@ -279,7 +279,7 @@ class AuthenticationPlugin[C: AuthenticationContext](Protocol):
     async def setup(
         self,
         plugins: AuthenticationPluginResolver,
-        state: LandtableState,
+        core: Landtable,
         mount: Callable[[str, ASGIApp], None],
     ):
         """

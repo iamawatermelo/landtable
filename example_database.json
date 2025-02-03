@@ -1,49 +1,11 @@
 {
   "version": 1,
   "id": "ldb:76fc69a773b04da77cd792faac2a5531",
-  "name": "Postgres",
-  "description": "Nest Postgres",
-  "plugin": "postgres_v0",
-  "comment": "Managed by postgres_provisioning_v0",
-  
-  "config": {
-    "hostname": "hackclub.app",
-    "database": "landtable",
-    
-    "username": {
-      "type": "secret",
-      "plugin": "vault",
-      "path": "database/creds/landtable",
-      "field": "secret"
-    },
-    
-    "password": {
-      "type": "secret",
-      "plugin": "vault",
-      "path": "database/creds/landtable",
-      "field": "secret"
-    }
-  },
-  
-  "management": {
-    "plugin": "postgres_provisioning_v0",
-    "config": {
-      "hostname": "hackclub.app",
-      "database": "landtable",
-      
-      "username": {
-        "type": "secret",
-        "plugin": "vault",
-        "path": "database/creds/landtable",
-        "field": "secret"
-      },
-      
-      "password": {
-        "type": "secret",
-        "plugin": "vault",
-        "path": "database/creds/landtable",
-        "field": "secret"
-      }
-    }
-  }
+  "name": "High Seas",
+  "description": "High Seas demo database",
+  "plugin": "in_memory_v0",
+  "comment": "",
+  "config": {},
+  "revision": 0,
+  "management": {}
 }

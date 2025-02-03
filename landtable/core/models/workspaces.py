@@ -19,7 +19,7 @@ FieldType: TypeAlias = Union[
 
 
 class FieldModel(BaseModel):
-    id: FieldIdentifier = PrivateAttr()
+    _id: FieldIdentifier = PrivateAttr()
     """
     Set when resolving a transaction's fields.
     """
@@ -43,6 +43,12 @@ class FieldModel(BaseModel):
     """
     Arbitrary metadata for this field.
     """
+    
+    def __hash__(self):
+        if self._id is None:
+            raise Exception("cannot hash FieldModel when _id is not set")
+        
+        return self._id.__hash__()
 
 
 class TableModel(BaseModel):
@@ -50,7 +56,7 @@ class TableModel(BaseModel):
     A table in Landtable contains your data.
     """
     
-    id: FieldIdentifier = PrivateAttr()
+    _id: FieldIdentifier = PrivateAttr()
     """
     Set when resolving a transaction's table.
     """

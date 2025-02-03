@@ -12,7 +12,7 @@ from landtable.auth.abstract import AuthenticationPlugin
 from landtable.tracing import Tracer
 
 if TYPE_CHECKING:
-    from landtable.state import LandtableState
+    from landtable.core import Landtable
 
 logger = getLogger(__name__)
 
@@ -34,14 +34,14 @@ class AuthenticationPluginResolver:
             for name, plugin in self.plugins.items():
                 logger.debug(f"- {type(plugin).__qualname__} ({name})")
 
-    async def initialise(self, state: LandtableState, mount_callback):
+    async def initialise(self, core: Landtable, mount_callback):
         with Tracer.from_context().trace(
             "auth", "Initialise all authentication plugins"
         ):
             # TODO: use asyncio taskgroup
             for name, plugin in self.plugins.items():
                 logger.debug(f"Initializing plugin {name}")
-                await plugin.setup(self, state, mount_callback)
+                await plugin.setup(self, core, mount_callback)
 
         self.initialised = True
 

@@ -12,35 +12,30 @@ from fastapi import Depends
 from starlette.requests import Request
 
 from landtable.auth.abstract import AuthenticationContext
+from landtable.auth.unsafe import UnsafeAuthenticationPlugin
+from landtable.core import Landtable
+from landtable.core.models.workspaces import WorkspaceModel
 from landtable.exceptions import APIUnauthorized
 
 logger = getLogger(__name__)
 
 
-async def authenticate(request: Request, state: State):
-    meta = await state.fetch_meta()
-
-    for name, _ in meta.auth_plugins.items():
-        logger.debug(f"Trying {name} on {request}")
-        plugin = state.auth.plugins.get(name)
-        assert plugin, f"Auth plugin {name} doesn't exist"
-
-        maybe_context = await plugin.create_context(request)
-
-        if maybe_context is not None:
-            return maybe_context
-
-    raise APIUnauthorized()
+async def authenticate(request: Request, core: Core):
+    """
+    For now, disable authentication.
+    """
+    
+    return await UnsafeAuthenticationPlugin().create_context(request)
 
 
 Authentication: TypeAlias = Annotated[AuthenticationContext, Depends(authenticate)]
 
 
-def state(request: Request):
+def core(request: Request):
     return request.app.state.landtable
 
 
-State: TypeAlias = Annotated[LandtableState, Depends(state)]
+Core: TypeAlias = Annotated[Landtable, Depends(core)]
 
 
 async def workspace(request: Request, workspace_id: str, auth: Authentication):
@@ -48,14 +43,4 @@ async def workspace(request: Request, workspace_id: str, auth: Authentication):
         return await request.app.state.landtable.fetch_workspace(workspace_id)
 
 
-Workspace: TypeAlias = Annotated[LandtableWorkspace, Depends(workspace)]
-
-
-async def table(
-    request: Request, workspace: Workspace, table_id: str, auth: Authentication
-):
-    with auth.enter():
-        return await workspace.fetch_table(table_id)
-
-
-Table: TypeAlias = Annotated[LandtableTable, Depends(table)]
+Workspace: TypeAlias = Annotated[WorkspaceModel, Depends(workspace)]

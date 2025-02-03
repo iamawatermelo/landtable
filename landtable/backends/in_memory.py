@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from pydantic.dataclasses import dataclass
 from landtable.core.backends import DatabaseBackend
-from landtable.core.models.transactions import ReadOperation, RowResult, RowTarget, Target, Transaction, TransactionOperation, WriteOperation
+from landtable.core.models.transactions import DeleteOperation, ReadOperation, RowResult, RowTarget, Target, TransactionModel, TransactionOperation, WriteOperation
 from landtable.core.models.workspaces import FieldModel, TableModel, WorkspaceModel
 from landtable.exceptions import APIPredicateFailed
 from landtable.identifiers import FieldIdentifier, Identifier, RowIdentifier, TableIdentifier, WorkspaceIdentifier
@@ -32,19 +32,19 @@ class InMemoryDatabaseBackend(DatabaseBackend):
     
     @staticmethod
     def resolve_targeted_fields(
-        target: Target,
+        target: Target | None,
         filter: set[FieldModel],
         use_ids: bool,
         table: dict[RowIdentifier, Row]
     ):
-        filtered_ids = {x.id for x in filter}
+        filtered_ids = {x._id for x in filter}
         if use_ids:
             id_map = {
-                x.id: x.id for x in filter
+                x._id: x._id for x in filter
             }
         else:
             id_map = {
-                x.id: x.name for x in filter
+                x._id: x.name for x in filter
             }
         
         if isinstance(target, RowTarget):
@@ -62,6 +62,16 @@ class InMemoryDatabaseBackend(DatabaseBackend):
                 },
                 created_at=row.created_at
             )]
+        elif target is None:
+            return [RowResult(
+                id=row_id,
+                row={
+                    (id_map[k]): v
+                    for k, v in row.row.items()
+                    if k in filtered_ids
+                },
+                created_at=row.created_at
+            ) for row_id, row in table.items()]
         
         raise NotImplementedError()
     
@@ -74,7 +84,7 @@ class InMemoryDatabaseBackend(DatabaseBackend):
         if isinstance(operation, ReadOperation):
             result = self.resolve_targeted_fields(
                 operation.target,
-                operation.resolved_returned_fields,
+                operation._resolved_returned_fields,
                 use_ids,
                 table
             )
@@ -88,8 +98,30 @@ class InMemoryDatabaseBackend(DatabaseBackend):
             new_id = Identifier("lrw", uuid4())
             table[new_id] = Row(
                 created_at=datetime.now(),
-                row={k.id: v for k, v in operation.resolved_row.items()}
+                row={k._id: v for k, v in operation._resolved_row.items()}
             )
+            
+            return RowResult(
+                id=new_id,
+                row=table[new_id].row,
+                created_at=table[new_id].created_at
+            )
+        
+        if isinstance(operation, DeleteOperation):
+            result = self.resolve_targeted_fields(
+                operation.target,
+                operation._resolved_returned_fields,
+                use_ids,
+                table
+            )
+            
+            if operation.fail is not None and not operation.fail.evaluate(len(result)):
+                raise APIPredicateFailed(message="delete operation has failed a predicate")
+            
+            for row in result:
+                del table[row.id]
+            
+            return result
         
         raise NotImplementedError()
     
@@ -97,7 +129,7 @@ class InMemoryDatabaseBackend(DatabaseBackend):
         self,
         workspace: WorkspaceModel,
         table: TableModel,
-        transaction: Transaction
+        transaction: TransactionModel
     ) -> list[RowResult | list[RowResult]]:
         """
         Execute a transaction. You do not need to validate caller
@@ -106,8 +138,8 @@ class InMemoryDatabaseBackend(DatabaseBackend):
         
         workspace_tab = self.table_data.get(workspace.id, {})
         self.table_data[workspace.id] = workspace_tab
-        table_tab = workspace_tab.get(table.id, {})
-        workspace_tab[table.id] = table_tab
+        table_tab = workspace_tab.get(table._id, {})
+        workspace_tab[table._id] = table_tab
         
         ret = [await self._execute_op(table_tab, op, transaction.use_ids) for op in transaction.ops]
         

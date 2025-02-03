@@ -35,14 +35,15 @@ class Identifier:
     @classmethod
     def parse_from(cls, to_parse: str):
         """
-        Parse an identifier from a string, like
+        Parse an identifier from a string.
         """
+        to_parse = to_parse.strip()
+        
+        if len(to_parse) != 36:
+            raise ValueError("identifier has invalid length")
 
         if to_parse[3] != ":":
             raise ValueError("identifier should be delimited with :")
-
-        if len(to_parse) != 36:
-            raise ValueError("identifier has invalid length")
 
         return cls(cast(IdentifierNamespace, to_parse[:3]), UUID(hex=to_parse[4:]))
 
