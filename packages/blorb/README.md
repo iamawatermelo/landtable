@@ -28,7 +28,7 @@ let
 of
     which (total_doubloons)
         | ..=23 => "You can afford a signed photo of Malted!"
-        > "Imagine not being able to afford a signed photo of Malted"
+        | .. => "Imagine not being able to afford a signed photo of Malted"
 ```
 
 ### ... Google Sheets
@@ -44,3 +44,59 @@ designed to be used as a spreadsheet language. However, it has functions
 to operate on arrays. In Blorb, array literals use `[]` square brackets,
 not `{}` curly braces, because `{}` denotes a variable that has a space
 inside it.
+
+## The language
+
+### Datatypes
+
+Currently, there are five:
+
+- number (always 64-bit floating point)
+- string
+- boolean (true / false)
+- empty
+- error
+
+### Add 5 to x:
+
+```
+x + 5
+```
+
+### Map over an array:
+
+```
+ARRAYMAP([1, 2, 3, 4], |x| x * 5)
+```
+
+### Match on some numbers:
+
+```
+which (score)
+    | 1000.. => "Well done!"
+    | 100..1000 => "Great!"
+    | 0!..100 => "Okay!"
+    | ..=0 => "Oh dear"
+```
+
+> [!NOTE]
+> `x..` means value is **greater than or equal to** x
+> `x!..` means value is **greater than** x
+> `..x` means value is **less than** x
+> `..=x` means value is **less than or equal to** x
+> `..` means accept all values even if they are not comparable.
+
+### Match on arbitrary values:
+
+```
+which (could_be_anything)
+    | 1000.. => "Woah..."
+    | "Hey, Sarah" => "Hi, Alice!"
+    | 42 => "Oh, that's my lucky number!"
+    | true => "I agree."
+    | .. => "I don't know what " & could_be_anything & " is."
+```
+
+> [!NOTE]
+> If there is no `..` clause in a `which` case, an error is returned when
+> the value doesn't match anything specified.

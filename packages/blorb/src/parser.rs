@@ -1,6 +1,16 @@
 use chumsky::{error::Simple, prelude::*, text::{self, TextParser}, Parser};
 
 #[derive(Debug, PartialEq)]
+pub enum Pattern {
+    Gt(Box<Expression>),
+    Geq(Box<Expression>),
+    Lt(Box<Expression>),
+    Leq(Box<Expression>),
+    Eq(Box<Expression>),
+    Else
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Expression {
     Num(f64),
     Str(String),
@@ -26,7 +36,22 @@ pub enum Expression {
     And(Box<Expression>, Box<Expression>),
     Not(Box<Expression>),
     
-    Call(String, Vec<Expression>),
+    Let {
+        bindings: Vec<(String, Expression)>,
+        of: Box<Expression>
+    },
+    
+    Which {
+        operand: Box<Expression>,
+        ops: Vec<(Pattern, Box<Expression>)>
+    },
+    
+    Lambda {
+        args: Vec<String>,
+        body: Box<Expression>
+    },
+    
+    Call(Box<Expression>, Vec<Expression>),
     List(Vec<Expression>),
     Variable(String)
 }
@@ -76,15 +101,6 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         .boxed();
     
     recursive(|expr| {
-        let fcall = text::ident()
-            .then(
-                expr.clone()
-                    .separated_by(op(','))
-                    .collect()
-                    .delimited_by(just('('), just(')'))
-            )
-            .map(|(ident, li)| Expression::Call(ident, li));
-        
         let array = expr.clone()
             .separated_by(op(','))
             .collect()
@@ -92,7 +108,6 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .map(|li| Expression::List(li));
         
         let variable = text::ident()
-            .then_ignore(just('(').not())
             .padded()
             .map(|ident| Expression::Variable(ident));
         
@@ -101,21 +116,39 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .delimited_by(just('{'), just('}'))
             .map(|x| Expression::Variable(x.iter().collect()));
         
+        let lambda = text::ident()
+            .separated_by(op(','))
+            .collect()
+            .delimited_by(just('|'), just('|'))
+            .then(expr.clone())
+            .map(|(args, body)| Expression::Lambda { args, body: Box::new(body) });
+        
         let atom = variable
             .or(braced_variable)
+            .or(lambda)
             .or(array)
             .or(int)
             .or(string)
-            .or(fcall)
             .or(expr.clone().delimited_by(just('('), just(')')));
         
         let opfold = |lhs, (op, rhs): (fn(Box<Expression>, Box<Expression>) -> Expression, _)|
             op(Box::new(lhs), Box::new(rhs));
         
+        let fcall = atom.clone()
+            .then(
+                expr.clone()
+                    .separated_by(op(','))
+                    .collect()
+                    .delimited_by(just('('), just(')'))
+                    .repeated()
+            )
+            .padded()
+            .foldl(|lhs, rhs| Expression::Call(Box::new(lhs), rhs));
+        
         let unop = op('-').to(Expression::Neg as fn(_) -> _)
             .or(op('!').to(Expression::Not as fn(_) -> _))
             .repeated()
-            .then(atom)
+            .then(fcall)
             .foldr(|op, rhs| op(Box::new(rhs)));
         
         // In order of highest to lowest precedence:
@@ -131,25 +164,50 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .then(
                 choice((
                     op('*').to(Expression::Mul as fn(_, _) -> _),
-                    op('/').to(Expression::Div as fn(_, _) -> _)
+                    op('/').to(Expression::Div as fn(_, _) -> _),
+                    just("//").padded().to(Expression::FlDiv as fn(_, _) -> _),
+                    op('%').to(Expression::Mod as fn(_, _) -> _)
                 ))
                 .then(pow)
                 .repeated()
             )
             .foldl(opfold);
         
-        let addsub = pow.clone()
+        let addsub = muldiv.clone()
             .then(
                 choice((
-                    op('*').to(Expression::Mul as fn(_, _) -> _),
-                    op('/').to(Expression::Div as fn(_, _) -> _)
+                    op('+').to(Expression::Add as fn(_, _) -> _),
+                    op('-').to(Expression::Sub as fn(_, _) -> _)
                 ))
-                .then(pow)
+                .then(muldiv)
                 .repeated()
             )
             .foldl(opfold);
         
-        todo!()
+        let concat = addsub.clone()
+            .then(
+                op('&')
+                .then(addsub)
+                .repeated()
+            )
+            .foldl(|lhs, (_, rhs)| Expression::Concat(Box::new(lhs), Box::new(rhs)));
+        
+        let cmp = concat.clone()
+            .then(
+                choice((
+                    op('=').to(Expression::Eq as fn(_, _) -> _),
+                    just('<').then_ignore(just('=').not().rewind()).padded().to(Expression::Lt as fn(_, _) -> _),
+                    just('>').then_ignore(just('=').not().rewind()).padded().to(Expression::Gt as fn(_, _) -> _),
+                    just("!=").padded().to(Expression::Neq as fn(_, _) -> _),
+                    just(">=").padded().to(Expression::Geq as fn(_, _) -> _),
+                    just("<=").padded().to(Expression::Leq as fn(_, _) -> _),
+                ))
+                .then(concat)
+                .repeated()
+            )
+            .foldl(opfold);
+        
+        cmp
     })
         .then_ignore(end())
 }
