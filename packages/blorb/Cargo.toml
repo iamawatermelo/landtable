@@ -1,0 +1,13 @@
+[package]
+name = "blorb"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "blorb"
+crate-type = ["cdylib"]
+
+[dependencies]
+chumsky = "0.9.3"
+pyo3 = "0.23.3"

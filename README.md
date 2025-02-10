@@ -7,6 +7,9 @@
 
 ![A diagram of Landtable's architecture](docs/architecture.png)
 
+This repository houses other projects too. For their documentation, see:
+- [blorb](packages/blorb/README.md)
+
 ## What is Landtable?
 
 Landtable is an easy-to-use proxy between your application and your

@@ -15,6 +15,16 @@ dependencies = [
     "pytest-asyncio>=0.25.3",
 ]
 
+[tool.uv.sources]
+blorb = { path = "packages/blorb" }
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv]
+# i'm too lazy to do it properly
+reinstall-package = ["blorb"]
+
 [project.entry-points."landtable.backends.v0"]
 # postgres = "landtable.backends.postgres_backend:PostgresBackend"
 
