@@ -1,13 +1,42 @@
 use chumsky::{error::Simple, prelude::*, text::{self, TextParser}, Parser};
 
+#[derive(Debug, PartialEq, Copy, Clone)]
+enum PatternType {
+    /// ..
+    Bt,
+    
+    /// ..=
+    BtInc,
+    
+    /// !..
+    BtEx,
+    
+    /// !..=
+    BtExInc
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Pattern {
-    Gt(Box<Expression>),
-    Geq(Box<Expression>),
+    /// .0 <= x < .1
+    Bt(Box<Expression>, Box<Expression>),
+    
+    /// .0 <= x <= .1
+    BtInc(Box<Expression>, Box<Expression>),
+    
+    /// .0 < x < .1
+    BtEx(Box<Expression>, Box<Expression>),
+    
+    /// .0 < x <= 1
+    BtExInc(Box<Expression>, Box<Expression>),
+    
     Lt(Box<Expression>),
     Leq(Box<Expression>),
-    Eq(Box<Expression>),
-    Else
+    Gt(Box<Expression>),
+    Geq(Box<Expression>),
+    
+    Else,
+    
+    Invalid
 }
 
 #[derive(Debug, PartialEq)]
@@ -43,7 +72,7 @@ pub enum Expression {
     
     Which {
         operand: Box<Expression>,
-        ops: Vec<(Pattern, Box<Expression>)>
+        ops: Vec<(Pattern, Expression)>
     },
     
     Lambda {
@@ -53,7 +82,9 @@ pub enum Expression {
     
     Call(Box<Expression>, Vec<Expression>),
     List(Vec<Expression>),
-    Variable(String)
+    Variable(String),
+    
+    Invalid
 }
 
 pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
@@ -109,7 +140,12 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         
         let variable = text::ident()
             .padded()
-            .map(|ident| Expression::Variable(ident));
+            .try_map(|ident: String, span| match &*ident {
+                "which" => {
+                    Err(Simple::custom(span, "can't use keyword which as variable name"))
+                },
+                _ => Ok(Expression::Variable(ident))
+            });
         
         let braced_variable = none_of("{}")
             .repeated()
@@ -123,32 +159,99 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .then(expr.clone())
             .map(|(args, body)| Expression::Lambda { args, body: Box::new(body) });
         
-        let atom = variable
-            .or(braced_variable)
-            .or(lambda)
-            .or(array)
-            .or(int)
-            .or(string)
-            .or(expr.clone().delimited_by(just('('), just(')')));
+        let atom = recursive(|atom| {
+            let inner_atom = variable
+                .or(braced_variable)
+                .or(lambda)
+                .or(array)
+                .or(int)
+                .or(string)
+                .or(expr.clone().delimited_by(just('('), just(')')));
+            
+            let pattern = atom.clone()
+                .or_not()
+                .then(choice((
+                    just("!..=").to(PatternType::BtExInc),
+                    just("!..").to(PatternType::BtEx),
+                    just("..=").to(PatternType::BtInc),
+                    just("..").to(PatternType::Bt),
+                )).then(atom.clone().or_not()))
+                .validate(|(lhs, (op, rhs)), span, emit| match (lhs, op, rhs) {
+                    (Some(lhs), PatternType::Bt, Some(rhs)) => Pattern::Bt(Box::new(lhs), Box::new(rhs)),
+                    (Some(lhs), PatternType::BtEx, Some(rhs)) => Pattern::Bt(Box::new(lhs), Box::new(rhs)),
+                    (Some(lhs), PatternType::BtInc, Some(rhs)) => Pattern::BtInc(Box::new(lhs), Box::new(rhs)),
+                    (Some(lhs), PatternType::BtExInc, Some(rhs)) => Pattern::BtExInc(Box::new(lhs), Box::new(rhs)),
+                    
+                    (Some(lhs), PatternType::Bt, None) => Pattern::Geq(Box::new(lhs)),
+                    (Some(lhs), PatternType::BtEx, None) => Pattern::Gt(Box::new(lhs)),
+                    
+                    (None, PatternType::Bt, Some(rhs)) => Pattern::Lt(Box::new(rhs)),
+                    (None, PatternType::BtInc, Some(rhs)) => Pattern::Leq(Box::new(rhs)),
+                    
+                    (None, PatternType::Bt, None) => Pattern::Else,
+                    
+                    (lhs, op, rhs) => {
+                        emit(Simple::custom(
+                            span,
+                            format!(
+                                "unknown combination of {} {} {}",
+                                match lhs {
+                                    Some(_) => "value",
+                                    None => "nothing"
+                                },
+                                match op {
+                                    PatternType::Bt => "..",
+                                    PatternType::BtEx => "!..",
+                                    PatternType::BtInc => "..=",
+                                    PatternType::BtExInc => "!..="
+                                },
+                                match rhs {
+                                    Some(_) => "value",
+                                    None => "nothing"
+                                }
+                            ),
+                        ));
+                        
+                        Pattern::Invalid
+                    }
+                });
+            
+            let which = just("which")
+                .padded()
+                .ignored()
+                .then(inner_atom.clone())
+                .then_ignore(op('|'))
+                .then(
+                    pattern
+                        .then_ignore(just("=>").padded())
+                        .then(expr.clone())
+                        .separated_by(op('|'))
+                )
+                .map(|((_, operand), ops)| Expression::Which {
+                    operand: Box::new(operand),
+                    ops
+                });
+            
+            which.or(
+                inner_atom.clone()
+                    .then(
+                        expr.clone()
+                            .separated_by(op(','))
+                            .collect()
+                            .delimited_by(just('('), just(')'))
+                            .repeated()
+                    )
+                    .foldl(|lhs, rhs| Expression::Call(Box::new(lhs), rhs))
+                )
+        });
         
         let opfold = |lhs, (op, rhs): (fn(Box<Expression>, Box<Expression>) -> Expression, _)|
             op(Box::new(lhs), Box::new(rhs));
         
-        let fcall = atom.clone()
-            .then(
-                expr.clone()
-                    .separated_by(op(','))
-                    .collect()
-                    .delimited_by(just('('), just(')'))
-                    .repeated()
-            )
-            .padded()
-            .foldl(|lhs, rhs| Expression::Call(Box::new(lhs), rhs));
-        
         let unop = op('-').to(Expression::Neg as fn(_) -> _)
             .or(op('!').to(Expression::Not as fn(_) -> _))
             .repeated()
-            .then(fcall)
+            .then(atom)
             .foldr(|op, rhs| op(Box::new(rhs)));
         
         // In order of highest to lowest precedence:
