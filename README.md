@@ -157,6 +157,10 @@ $ landtable iac deploy workspace.kdl \  # deploy workspace.kdl
     --meta meta.kdl \                   # using meta.kdl
     --endpoint http://localhost:5963 \  # using a locally hosted endpoint
 
+Fetching remote state
+Please provide an authentication token for vault://vault.srh.dog/: XXXX
+Computing required state changes
+-> postgres_provisioning_plugin: Fetching existing Postgres state
 Computed execution plan in 512 ms
 
 (1) postgres_provisioning_plugin: Create Postgres tables on localhost:5173
@@ -179,6 +183,8 @@ Computed execution plan in 512 ms
     - alias "hs"
     
 (3) Landtable: Create table High Seas/people
+    - WARNING: fields "status", "doubloons", (3 more) exist in
+               High Seas/people and will not be deleted
     - short_text field "first_name"
     - short_text field "last_name"
         - with primary config override:
@@ -196,6 +202,7 @@ Computed execution plan in 512 ms
     - filter: {frumbicated_status} = "florp"
 
 Ok to continue? [y/N]: 
+
 
 Provisioned in 2041 ms
 ```

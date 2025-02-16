@@ -16,6 +16,12 @@ Blorb is a **formula language** that aims to be (in order):
   Blorb aims to be reasonably fast at computing the same formula thousands
   of times.
 
+Because Blorb is a formula language, it only compiles to **one value**.
+It is designed to be embedded...
+
+- as a query language?
+- as part of a config language?
+
 ## Differences from...
 
 ### ... Airtable
@@ -47,11 +53,12 @@ Currently, there are five:
 - boolean (true / false)
 - empty
 - error
+- function, though these **can't be returned from formulae**
 
 ### Add 5 to x:
 
 ```
-x + 5
+x + 5  # Adds 5 to x. Note that comments continue until the end of the line.
 ```
 
 ### Map over an array:
@@ -63,7 +70,7 @@ ARRAYMAP([1, 2, 3, 4], |x| x * 5)
 ### Match on some numbers:
 
 ```
-which (score)
+which score
     1000.. => "Well done!",
     100..1000 => "Great!",
     0!..100 => "Okay!",
@@ -80,7 +87,7 @@ which (score)
 ### Match on arbitrary values:
 
 ```
-which (could_be_anything)
+when could_be_anything
     1000.. => "Woah...",
     "Hey, Sarah" => "Hi, Alice!",
     42 => "Oh, that's my lucky number!",
@@ -114,9 +121,11 @@ let
     {Elliot's rating} = 1867,
     {K-factor} = 32,
     
+    # Functions are values in Blorb.
     {Expected score function} = |{Player's rating}, {Opponent's rating}|
         1 / (1 + 10 ^ (({Opponent's rating} - {Player's rating}) / 400)),
     
+    # Let bindings can reference previous let bindings inside of itself.
     {Neko's expected score} = {Expected score function}(
         {Neko's rating},
         {Elliot's rating}
@@ -134,7 +143,9 @@ let
         )
     )
 of
-    which {Neko's new rating}
+    # When expressions allow a more ergonomic alternative to nested IF
+    # calls.
+    when {Neko's new rating}
         {Neko's rating} => "Neko's rating hasn't changed",
         {Neko's rating}!.. => "Neko's rating increased to " & {Neko's new rating},
         ..{Neko's rating} => "Neko's rating decreased to " & {Neko's new rating}
@@ -146,3 +157,7 @@ From this, we have learned:
   and stored in variables
 - That let bindings have access to variables declared **before themselves**
 - That match expressions can contain expressions, not just number literals
+
+## Licensing
+
+Blorb is currently licensed under the same license as Landtable.

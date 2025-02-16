@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def find_all_backends() -> dict[str, type[DatabaseBackend]]:
     discovered_plugins = entry_points(group="landtable.backends")
-    logger.info(f"Discovered {len(discovered_plugins)} plugins")
+    logger.info(f"Discovered {len(discovered_plugins)} database plugins")
     
     return {
         plugin.name: plugin.load() for plugin in discovered_plugins

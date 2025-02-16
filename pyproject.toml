@@ -21,16 +21,15 @@ blorb = { path = "packages/blorb" }
 [tool.uv.workspace]
 members = ["packages/*"]
 
-[tool.uv]
-# i'm too lazy to do it properly
-reinstall-package = ["blorb"]
-
 [project.entry-points."landtable.backends.v0"]
-# postgres = "landtable.backends.postgres_backend:PostgresBackend"
+in_memory_v0 = "landtable.backends.in_memory:InMemoryDatabaseBackend"
 
 [project.entry-points."landtable.auth.v0"]
 unsafe_allow_all_requests_i_know_what_i_am_doing = "landtable.auth.unsafe:UnsafeAuthenticationPlugin"
 reject = "landtable.auth.reject:RejectAuthenticationPlugin"
+
+[project.entry-points."landtable.provisioning.v0"]
+in_memory_v0_provisioning = "landtable.provisioning.in_memory:InMemoryProvisioningPlugin"
 
 [project.scripts]
 landtable = "landtable.__main__:app"

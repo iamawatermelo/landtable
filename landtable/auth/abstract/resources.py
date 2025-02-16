@@ -55,6 +55,20 @@ class TableConfigurationResource(Resource):
 
 
 @dataclass(frozen=True)
+class WorkspacesResource(Resource):
+    """
+    Whether the caller can list workspaces.
+    Only workspaces the caller has access to will be returned.
+    """
+    
+    id = "lt.workspacelist"
+    
+    @property
+    def resource_name(self) -> str:
+        return "workspace list"
+
+
+@dataclass(frozen=True)
 class WorkspaceResource(Resource):
     """
     Whether the caller can access this workspace at all.

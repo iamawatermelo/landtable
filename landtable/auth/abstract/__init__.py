@@ -16,6 +16,7 @@ import logging
 from typing import TYPE_CHECKING, Any, ClassVar
 from typing import Callable
 from typing import Protocol
+from landtable.auth.abstract.resources import WorkspacesResource
 from landtable.exceptions import APIForbidden
 
 from starlette.requests import Request
@@ -179,6 +180,21 @@ class AuthenticationContext(Protocol):
         """
 
         raise ContextFailedException
+    
+    async def list_workspaces(self):
+        """
+        List the workspaces this user has access to.
+        """
+        
+        raise NotImplementedError
+    
+    async def list_capabilities(self):
+        """
+        List the capabilities this context has. This information is not
+        used for authentication.
+        """
+        
+        raise NotImplementedError
     
     def extend(
         self, 

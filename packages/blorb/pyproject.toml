@@ -7,10 +7,18 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
+python-packages = ["blorb"]
 
 [build-system]
 requires = ["maturin>=1.8,<2.0"]
 build-backend = "maturin"
 
+[[tool.uv.cache-keys]]
+file = "src/**/*.rs"
+
+[[tool.uv.cache-keys]]
+file = "*.toml"
+
 [tool.maturin]
+module-name = "blorb._blorb"
 features = ["pyo3/extension-module"]

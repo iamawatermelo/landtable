@@ -8,8 +8,10 @@ from pathlib import Path
 from time import sleep
 from typing import Annotated
 import typer
-from rich.progress import Progress, TextColumn, SpinnerColumn
+from rich.progress import Progress, TextColumn, SpinnerColumn, track
 from cuddly_dicts import kdl_source_to_dict
+
+from landtable.iac.config.workspace import WorkspaceDocumentV1
 
 iac = typer.Typer()
 
@@ -55,26 +57,21 @@ def preprocess(in_dict: dict, env: str | None, path: Path) -> dict:
 
 @iac.command()
 def apply(
-    meta: Annotated[Path, typer.Option("--meta")],
-    files: list[Path],
+    recipes: list[Path],
     env: Annotated[str | None, typer.Option("--env", "-e")] = None
-):
+):  
     with Progress(
         SpinnerColumn(),
         TextColumn("[pink][progress.description]{task.description}"),
     ) as progress:
-        task1 = progress.add_task("Loading configuration files...", total=1)
+        resolved_recipes = list()
+        config_task = progress.add_task("Loading configuration files...", total=len(recipes))
         
-        with open(meta) as meta_file:
-            meta_dict = kdl_source_to_dict(meta_file.read())
+        for recipe in recipes:
+            progress.update(config_task, advance=1)
+            with open(recipe) as recipe_file:
+                resolved_recipes.append(WorkspaceDocumentV1(
+                    **kdl_source_to_dict(recipe_file.read())
+                ))  
         
-        if env is None:
-            env = os.environ.get("LANDTABLE_IAC_ENV")
-        
-        meta_dict = preprocess(meta_dict, env, meta.parent)
-        
-        progress.update(
-            task1,
-            visible=False
-        )
         progress.console.log("Loaded configuration files")

@@ -6,11 +6,31 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict
 
 from landtable.identifiers import TableIdentifier
-from landtable.state.models import FieldType
-from landtable.formula.formula import Formula
 
 
-class BaseStrategySpec(BaseModel):
+class DatabaseSpecV1(BaseModel):
+    """
+    A database. Extra fields will be in model_extra.
+    """
+    
+    model_config = ConfigDict()
+    
+    name: str
+    using: str
+    replicate: bool
+
+
+class DatabaseRefSpecV1(BaseModel):
+    """
+    A reference to an existing database.
+    """
+    
+    model_config = ConfigDict()
+    
+    ref: str
+
+
+class BaseStrategySpecV1(BaseModel):
     """
     A provisioning strategy. Strategy providers should get their
     configuration with model_extra.
@@ -33,7 +53,7 @@ class BaseStrategySpec(BaseModel):
     """
 
 
-class BaseFieldReplicaConfig(BaseModel):
+class BaseFieldReplicaConfigV1(BaseModel):
     """
     Replica configuration for a field. Strategy providers should get
     their configuration with model_extra.
@@ -43,48 +63,52 @@ class BaseFieldReplicaConfig(BaseModel):
     disallow_replication: bool
 
 
-class FieldSpec(BaseModel):
+class FieldSpecV1(BaseModel):
     """
     A field specification.
     """
     
-    type: FieldType
-    default: Any | None
+    type: str
+    alias: str | list[str] = []
+    default: Any | None = None
     
-    enum: list[str] | None
+    enum: list[str] | None = None
     
-    primary_config: BaseFieldReplicaConfig | None
-    secondary_config: dict[str, BaseFieldReplicaConfig] = {}
+    primary_config: BaseFieldReplicaConfigV1 | None = None
+    secondary_config: dict[str, BaseFieldReplicaConfigV1] = {}
 
 
-class ViewSpec(BaseModel):
-    """
-    A view specification, defining what a view should look like.
-    """
-    
-    filter: Formula | None
+# class ViewSpec(BaseModel):
+#     """
+#     A view specification, defining what a view should look like.
+#     """
+#     
+#     filter: Formula | None
 
 
-class TableSpec(BaseModel):
+class TableSpecV1(BaseModel):
     """
     A table specification, defining what a table should look like.
     """
     
-    field: dict[str, FieldSpec]
-    view: dict[str, ViewSpec]
+    alias: str | list[str] = []
+    field: dict[str, FieldSpecV1] = {}
+    # view: dict[str, ViewSpec]
 
 
-class WorkspaceDocument(BaseModel):
+class WorkspaceDocumentV1(BaseModel):
     """
     A workspace configuration file.
     """
     type: Literal["workspace"]
     version: Literal[1]
     
-    alias: str | list[str]
-    id: TableIdentifier | None
+    name: str
+    alias: str | list[str] = []
+    id: TableIdentifier | None = None
     
-    primary_strategy: BaseStrategySpec | None
-    secondary_strategy: dict[str, BaseStrategySpec] = {}
+    # TODO implement an actual pydantic validator 
+    primary_database: DatabaseSpecV1 | DatabaseRefSpecV1
+    secondary_database: list[DatabaseSpecV1 | DatabaseRefSpecV1] | DatabaseSpecV1 | DatabaseRefSpecV1 = []
     
-    table: dict[str, TableSpec] = {}
+    table: dict[str, TableSpecV1] = {}

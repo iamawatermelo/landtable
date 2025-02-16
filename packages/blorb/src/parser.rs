@@ -1,38 +1,207 @@
-use chumsky::{error::Simple, prelude::*, text::{self, TextParser}, Parser};
+use std::ops::Range;
+use std::iter::once;
+use chumsky::{error::Simple, prelude::*, primitive::custom, text::{self, TextParser}, Parser, Stream};
+use logos::{Logos, Span};
 
-#[derive(Debug, PartialEq, Copy, Clone)]
-enum PatternType {
-    /// ..
+#[derive(Logos, Debug, PartialEq, Copy, Clone, Hash, Eq)]
+#[logos(skip r"[ \t\n\f]+")]
+#[logos(skip r"#.*\n?")]
+pub enum Token {
+    #[token("let")]
+    Let,
+    
+    #[token("of")]
+    Of,
+    
+    #[token(":=")]
+    Assign,
+    
+    #[token("when")]
+    When,
+    
+    #[token("=>")]
+    Arm,
+    
+    #[token("[")]
+    LeftList,
+    
+    #[token("]")]
+    RightList,
+    
+    #[token("(")]
+    LeftParen,
+    
+    #[token(")")]
+    RightParen,
+    
+    #[token(",")]
+    Separator,
+    
+    #[regex(r#""([^\\"]|\\[\w"\\])*""#)]
+    String,
+    
+    #[regex(r"[0-9_]+(\.[0-9_]+)?", priority = 3)]
+    Number,
+    
+    #[regex(r"\{\w+\}")]
+    BracketedVariable,
+    
+    #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
+    Variable,
+    
+    // Math operations
+    #[token("-")]
+    Minus,
+    
+    #[token("+")]
+    Plus,
+    
+    #[token("*")]
+    Multiply,
+    
+    #[token("/")]
+    Divide,
+    
+    #[token("//")]
+    FloorDivide,
+    
+    #[token("&")]
+    Concatenate,
+    
+    #[token("%")]
+    Modulo,
+    
+    #[token("^")]
+    Power,
+    
+    // Logic operators
+    #[token("=")]
+    Eq,
+    
+    #[token("!=")]
+    Neq,
+    
+    #[token("|")]
+    Pipe,
+    
+    #[token("&&")]
+    And,
+    
+    #[token("!")]
+    Not,
+    
+    // Comparison operators
+    #[token("<")]
+    Lt,
+    
+    #[token("<=")]
+    Leq,
+    
+    #[token(">")]
+    Gt,
+    
+    #[token(">=")]
+    Geq,
+    
+    // Pattern matchinbg
+    #[token("..")]
     Bt,
     
-    /// ..=
+    #[token("..=")]
     BtInc,
     
-    /// !..
+    #[token("!..")]
     BtEx,
     
-    /// !..=
-    BtExInc
+    #[token("!..=")]
+    BtExInc,
+    
+    Error,
+    Eof
 }
+
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match *self {
+            Self::Let => write!(f, "let"),
+            Self::Of => write!(f, "of"),
+            Self::Assign => write!(f, ":="),
+            Self::When => write!(f, "when"),
+            Self::Arm => write!(f, "match arm"),
+            Self::LeftList => write!(f, "opening list bracket"),
+            Self::RightList => write!(f, "closing list bracket"),
+            Self::LeftParen => write!(f, "opening parenthesis"),
+            Self::RightParen => write!(f, "closing parenthesis"),
+            Self::Separator => write!(f, "separator"),
+            Self::String => write!(f, "string literal"),
+            Self::Number => write!(f, "number literal"),
+            Self::Variable => write!(f, "variable"),
+            Self::BracketedVariable => write!(f, "bracketed variable"),
+            Self::Minus => write!(f, "-"),
+            Self::Plus => write!(f, "+"),
+            Self::Multiply => write!(f, "*"),
+            Self::Divide => write!(f, "/"),
+            Self::FloorDivide => write!(f, "//"),
+            Self::Concatenate => write!(f, "&"),
+            Self::Modulo => write!(f, "%"),
+            Self::Power => write!(f, "^"),
+            Self::Eq => write!(f, "="),
+            Self::Neq => write!(f, "!="),
+            Self::Pipe => write!(f, "|"),
+            Self::And => write!(f, "&&"),
+            Self::Not => write!(f, "!"),
+            Self::Lt => write!(f, "<"),
+            Self::Leq => write!(f, "<="),
+            Self::Gt => write!(f, ">"),
+            Self::Geq => write!(f, ">="),
+            Self::Eof => write!(f, "end of formula"),
+            Self::Bt => write!(f, ".."),
+            Self::BtInc => write!(f, "..="),
+            Self::BtEx => write!(f, "!.."),
+            Self::BtExInc => write!(f, "!..="),
+
+            Self::Error => write!(f, "[internal error]"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Tagged<T: std::fmt::Debug + PartialEq> {
+    pub span: Range<usize>,
+    pub inner: T
+}
+
+impl<T: std::fmt::Debug + PartialEq> Tagged<T> {
+    fn new(span: Range<usize>, inner: T) -> Tagged<T> {
+        Tagged {
+            span,
+            inner
+        }
+    }
+}
+
+type Expr = Box<Tagged<Expression>>;
 
 #[derive(Debug, PartialEq)]
 pub enum Pattern {
     /// .0 <= x < .1
-    Bt(Box<Expression>, Box<Expression>),
+    Bt(Expr, Expr),
     
     /// .0 <= x <= .1
-    BtInc(Box<Expression>, Box<Expression>),
+    BtInc(Expr, Expr),
     
     /// .0 < x < .1
-    BtEx(Box<Expression>, Box<Expression>),
+    BtEx(Expr, Expr),
     
     /// .0 < x <= 1
-    BtExInc(Box<Expression>, Box<Expression>),
+    BtExInc(Expr, Expr),
     
-    Lt(Box<Expression>),
-    Leq(Box<Expression>),
-    Gt(Box<Expression>),
-    Geq(Box<Expression>),
+    Lt(Expr),
+    Leq(Expr),
+    Gt(Expr),
+    Geq(Expr),
+    
+    Eq(Expr),
     
     Else,
     
@@ -42,275 +211,294 @@ pub enum Pattern {
 #[derive(Debug, PartialEq)]
 pub enum Expression {
     Num(f64),
-    Str(String),
+    Str(Box<str>),
     
-    Neg(Box<Expression>),
-    Add(Box<Expression>, Box<Expression>),
-    Sub(Box<Expression>, Box<Expression>),
-    Mul(Box<Expression>, Box<Expression>),
-    Div(Box<Expression>, Box<Expression>),
-    FlDiv(Box<Expression>, Box<Expression>),
-    Mod(Box<Expression>, Box<Expression>),
-    Pow(Box<Expression>, Box<Expression>),
-    Concat(Box<Expression>, Box<Expression>),
+    Neg(Expr),
+    Add(Expr, Expr),
+    Sub(Expr, Expr),
+    Mul(Expr, Expr),
+    Div(Expr, Expr),
+    FlDiv(Expr, Expr),
+    Mod(Expr, Expr),
+    Pow(Expr, Expr),
+    Concat(Expr, Expr),
     
-    Gt(Box<Expression>, Box<Expression>),
-    Geq(Box<Expression>, Box<Expression>),
-    Lt(Box<Expression>, Box<Expression>),
-    Leq(Box<Expression>, Box<Expression>),
-    Eq(Box<Expression>, Box<Expression>),
-    Neq(Box<Expression>, Box<Expression>),
+    Gt(Expr, Expr),
+    Geq(Expr, Expr),
+    Lt(Expr, Expr),
+    Leq(Expr, Expr),
+    Eq(Expr, Expr),
+    Neq(Expr, Expr),
     
-    Or(Box<Expression>, Box<Expression>),
-    And(Box<Expression>, Box<Expression>),
-    Not(Box<Expression>),
+    Or(Expr, Expr),
+    And(Expr, Expr),
+    Not(Expr),
     
     Let {
-        bindings: Vec<(String, Expression)>,
-        of: Box<Expression>
+        bindings: Vec<(Tagged<Box<str>>, Tagged<Expression>)>,
+        of: Expr
     },
     
-    Which {
-        operand: Box<Expression>,
-        ops: Vec<(Pattern, Expression)>
+    When {
+        operand: Expr,
+        ops: Vec<(Tagged<Pattern>, Tagged<Expression>)>
     },
     
     Lambda {
-        args: Vec<String>,
-        body: Box<Expression>
+        args: Vec<Tagged<Box<str>>>,
+        body: Expr
     },
     
-    Call(Box<Expression>, Vec<Expression>),
-    List(Vec<Expression>),
-    Variable(String),
+    Call {
+        func: Expr,
+        args: Vec<Tagged<Expression>>
+    },
+    
+    List(Vec<Tagged<Expression>>),
+    Variable(Box<str>),
     
     Invalid
 }
 
-pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
-    let int = text::int(10)
-        .map(|s: String| Expression::Num(s.parse().unwrap()));
+macro_rules! gen_parser_precedence {
+    ($from:ident, {$($token:path => $expr:path),+}) => {
+        $from.clone()
+            .then(
+                choice((
+                    $( just($token).to($expr as fn(_, _) -> _), )+
+                ))
+                .map_with_span(|f, span| (f, span))
+                .then($from)
+                .repeated()
+            )
+            .foldl(|lhs, ((op, span), rhs)| Tagged::new(span, op(Box::new(lhs), Box::new(rhs))))
+            // it takes like nine years to compile if I don't box this I'm so sorry
+            .boxed()
+    }
+}
+
+fn parser<'a>(source: &'a String) -> impl Parser<Token, Tagged<Expression>, Error = Simple<Token>> + use<'a> {
+    let number = just(Token::Number)
+        .validate(|_, span: Span, emit| {
+            match source[span.start..span.end].replace('_', "").parse::<f64>() {
+                Ok(n) => Tagged::new(span, Expression::Num(n)),
+                Err(e) => {
+                    emit(Simple::custom(span.clone(), format!("invalid number literal {e}")));
+                    
+                    Tagged::new(span, Expression::Invalid)
+                }
+            }
+        });
     
-    let op = |c| just(c).padded();
+    let string = just(Token::String)
+        .map_with_span(|_, span: Span| Tagged::new(
+            span.start..span.end, 
+            Expression::Str(source[span.start+1..span.end-1].into())
+        ));
     
-    let escape = just('\\')
-        .ignore_then(choice((
-            just('\\'),
-            just('/'),
-            just('"'),
-            just('n').to('\n'),
-            just('r').to('\r'),
-            just('t').to('\t'),
-            just('u').ignore_then(
-                text::digits(16)
-                    .repeated()
-                    .collect()
-                    .validate(
-                        |digits: String, span, emit| {
-                            char::from_u32(u32::from_str_radix(&*digits, 16).unwrap())
-                                .unwrap_or_else(
-                                    || {
-                                        emit(Simple::custom(
-                                            span,
-                                            "invalid unicode character"
-                                        ));
-                                        '\u{FFFD}' // unicode replacement character
-                                    }
-                                )
-                        }
-                    )
-                    .delimited_by(just('{'), just('}'))
-                )
-            ))
+    let variable = just(Token::Variable)
+        .map_with_span(|_, span: Span| Tagged::new(span.start..span.end, Expression::Variable(source[span].into())))
+        .or(
+            just(Token::BracketedVariable)
+                .map_with_span(|_, span: Span| Tagged::new(
+                    span.start..span.end, 
+                    Expression::Variable(source[span.start+1..span.end-1].into())
+                ))
         );
     
-    let string = none_of("\\\"")
-        .or(escape)
-        .repeated()
-        .delimited_by(just('"'), just('"'))
-        .map(|x| Expression::Str(x.iter().collect()))
-        .boxed();
-    
     recursive(|expr| {
-        let array = expr.clone()
-            .separated_by(op(','))
-            .collect()
-            .delimited_by(just('['), just(']'))
-            .map(|li| Expression::List(li));
-        
-        let variable = text::ident()
-            .padded()
-            .try_map(|ident: String, span| match &*ident {
-                "which" => {
-                    Err(Simple::custom(span, "can't use keyword which as variable name"))
-                },
-                _ => Ok(Expression::Variable(ident))
-            });
-        
-        let braced_variable = none_of("{}")
-            .repeated()
-            .delimited_by(just('{'), just('}'))
-            .map(|x| Expression::Variable(x.iter().collect()));
-        
-        let lambda = text::ident()
-            .separated_by(op(','))
-            .collect()
-            .delimited_by(just('|'), just('|'))
-            .then(expr.clone())
-            .map(|(args, body)| Expression::Lambda { args, body: Box::new(body) });
-        
         let atom = recursive(|atom| {
-            let inner_atom = variable
-                .or(braced_variable)
-                .or(lambda)
-                .or(array)
-                .or(int)
-                .or(string)
-                .or(expr.clone().delimited_by(just('('), just(')')));
-            
             let pattern = atom.clone()
                 .or_not()
                 .then(choice((
-                    just("!..=").to(PatternType::BtExInc),
-                    just("!..").to(PatternType::BtEx),
-                    just("..=").to(PatternType::BtInc),
-                    just("..").to(PatternType::Bt),
-                )).then(atom.clone().or_not()))
-                .validate(|(lhs, (op, rhs)), span, emit| match (lhs, op, rhs) {
-                    (Some(lhs), PatternType::Bt, Some(rhs)) => Pattern::Bt(Box::new(lhs), Box::new(rhs)),
-                    (Some(lhs), PatternType::BtEx, Some(rhs)) => Pattern::Bt(Box::new(lhs), Box::new(rhs)),
-                    (Some(lhs), PatternType::BtInc, Some(rhs)) => Pattern::BtInc(Box::new(lhs), Box::new(rhs)),
-                    (Some(lhs), PatternType::BtExInc, Some(rhs)) => Pattern::BtExInc(Box::new(lhs), Box::new(rhs)),
-                    
-                    (Some(lhs), PatternType::Bt, None) => Pattern::Geq(Box::new(lhs)),
-                    (Some(lhs), PatternType::BtEx, None) => Pattern::Gt(Box::new(lhs)),
-                    
-                    (None, PatternType::Bt, Some(rhs)) => Pattern::Lt(Box::new(rhs)),
-                    (None, PatternType::BtInc, Some(rhs)) => Pattern::Leq(Box::new(rhs)),
-                    
-                    (None, PatternType::Bt, None) => Pattern::Else,
-                    
-                    (lhs, op, rhs) => {
-                        emit(Simple::custom(
-                            span,
-                            format!(
-                                "unknown combination of {} {} {}",
-                                match lhs {
-                                    Some(_) => "value",
-                                    None => "nothing"
-                                },
-                                match op {
-                                    PatternType::Bt => "..",
-                                    PatternType::BtEx => "!..",
-                                    PatternType::BtInc => "..=",
-                                    PatternType::BtExInc => "!..="
-                                },
-                                match rhs {
-                                    Some(_) => "value",
-                                    None => "nothing"
-                                }
-                            ),
-                        ));
+                    just(Token::Bt),
+                    just(Token::BtInc),
+                    just(Token::BtEx),
+                    just(Token::BtExInc),
+                )))
+                .then(atom.clone().or_not())
+                .validate(|((lhs, op), rhs), span: Span, emit| Tagged::new(
+                    span.start..span.end, 
+                    match (lhs, op, rhs) {
+                        // Base case
+                        (None, Token::Bt, None) => Pattern::Else,
                         
-                        Pattern::Invalid
+                        // Ranged
+                        (Some(lhs), Token::Bt, Some(rhs)) => Pattern::Bt(Box::new(lhs), Box::new(rhs)),
+                        (Some(lhs), Token::BtInc, Some(rhs)) => Pattern::BtInc(Box::new(lhs), Box::new(rhs)),
+                        (Some(lhs), Token::BtEx, Some(rhs)) => Pattern::BtEx(Box::new(lhs), Box::new(rhs)),
+                        (Some(lhs), Token::BtExInc, Some(rhs)) => Pattern::BtExInc(Box::new(lhs), Box::new(rhs)),
+                        
+                        // Open-ended on lhs
+                        (Some(lhs), Token::Bt, None) => Pattern::Geq(Box::new(lhs)),
+                        (Some(lhs), Token::BtEx, None) => Pattern::Gt(Box::new(lhs)),
+                        
+                        // Open-ended on rhs
+                        (None, Token::Bt, Some(rhs)) => Pattern::Lt(Box::new(rhs)),
+                        (None, Token::BtInc, Some(rhs)) => Pattern::Leq(Box::new(rhs)),
+                        
+                        _ => {
+                            emit(Simple::custom(span, format!("invalid range specifier")));
+                            
+                            Pattern::Invalid
+                        }
                     }
-                });
+                ))
+                .or(
+                    atom.clone()
+                        .map_with_span(|thing, span| Tagged::new(span, Pattern::Eq(Box::new(thing))))
+                );
             
-            let which = just("which")
-                .padded()
-                .ignored()
-                .then(inner_atom.clone())
-                .then_ignore(op('|'))
+            let when = just(Token::When)
+                .then(atom.clone())
                 .then(
                     pattern
-                        .then_ignore(just("=>").padded())
-                        .then(expr.clone())
-                        .separated_by(op('|'))
+                        .then_ignore(just(Token::Arm))
+                        .then(atom.clone())
+                        .separated_by(just(Token::Separator))
+                        .collect()
                 )
-                .map(|((_, operand), ops)| Expression::Which {
-                    operand: Box::new(operand),
-                    ops
-                });
+                .map_with_span(|((_, operand), ops), span| Tagged::new(
+                    span,
+                    Expression::When {
+                        operand: Box::new(operand),
+                        ops
+                    }
+                ));
             
-            which.or(
-                inner_atom.clone()
-                    .then(
-                        expr.clone()
-                            .separated_by(op(','))
-                            .collect()
-                            .delimited_by(just('('), just(')'))
-                            .repeated()
-                    )
-                    .foldl(|lhs, rhs| Expression::Call(Box::new(lhs), rhs))
-                )
+            let binding = variable
+                .then_ignore(just(Token::Assign))
+                .then(expr.clone())
+                .map(|(var, rhs)| match var.inner {
+                    Expression::Variable(name) => (Tagged::new(var.span, name), rhs),
+                    _ => (Tagged::new(var.span, "???".into()), rhs)
+                })
+                .separated_by(just(Token::Separator))
+                .delimited_by(just(Token::Let), just(Token::Of))
+                .then(expr.clone())
+                .map_with_span(|(bindings, of), span| Tagged::new(
+                    span,
+                    Expression::Let {
+                        bindings,
+                        of: Box::new(of)
+                    }
+                ));
+            
+            let list = expr.clone()
+                .separated_by(just(Token::Separator))
+                .collect()
+                .map_with_span(|list, span: Span| Tagged::new(
+                    span,
+                    Expression::List(list)
+                ))
+                .delimited_by(just(Token::LeftList), just(Token::RightList));
+            
+            let paren_expr = expr.clone()
+                .delimited_by(just(Token::LeftParen), just(Token::RightParen));
+            
+            let lambda = variable
+                .map(|var| match var.inner {
+                    Expression::Variable(name) => Tagged::new(var.span, name),
+                    _ => Tagged::new(var.span, "???".into())
+                })
+                .separated_by(just(Token::Separator))
+                .collect()
+                .delimited_by(just(Token::Pipe), just(Token::Pipe))
+                .then(expr.clone())
+                .map_with_span(|(args, body), span| Tagged::new(
+                    span,
+                    Expression::Lambda {
+                        args,
+                        body: Box::new(body)
+                    }
+                ));
+                
+            choice((
+                number,
+                string,
+                variable,
+                when,
+                binding,
+                list,
+                paren_expr,
+                lambda
+            ))
+        })
+            .boxed();
+        
+        let fcall = atom.clone()
+            .then(
+                expr
+                .clone()
+                .separated_by(just(Token::Separator))
+                .collect::<Vec<Tagged<Expression>>>()
+                .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+                .map_with_span(|arglist, span| (arglist, span))
+                .repeated()
+            )
+            .foldl(|func, (args, span)| Tagged::new(span, Expression::Call {
+                func: Box::new(func),
+                args
+            }));
+        
+        let unary = choice((
+            just(Token::Minus).to(Expression::Neg as fn(_) -> _),
+            just(Token::Not).to(Expression::Not as fn(_) -> _)
+        ))
+            .map_with_span(|f, span| (f, span))
+            .repeated()
+            .then(fcall.clone())
+            .foldr(|(op, span), rhs| Tagged::new(span, op(Box::new(rhs))));
+        
+        let power = gen_parser_precedence!(unary, {
+            Token::Power => Expression::Pow
         });
         
-        let opfold = |lhs, (op, rhs): (fn(Box<Expression>, Box<Expression>) -> Expression, _)|
-            op(Box::new(lhs), Box::new(rhs));
+        let muldiv = gen_parser_precedence!(power, {
+            Token::Multiply => Expression::Mul,
+            Token::Divide => Expression::Div,
+            Token::FloorDivide => Expression::FlDiv,
+            Token::Modulo => Expression::Mod
+        });
         
-        let unop = op('-').to(Expression::Neg as fn(_) -> _)
-            .or(op('!').to(Expression::Not as fn(_) -> _))
-            .repeated()
-            .then(atom)
-            .foldr(|op, rhs| op(Box::new(rhs)));
+        let addsub = gen_parser_precedence!(muldiv, {
+            Token::Plus => Expression::Add,
+            Token::Minus => Expression::Sub
+        });
         
-        // In order of highest to lowest precedence:
-        let pow = unop.clone()
-            .then(
-                op('^')
-                .then(unop)
-                .repeated()
-            )
-            .foldl(|lhs, (_, rhs)| Expression::Pow(Box::new(lhs), Box::new(rhs)));
+        let band = gen_parser_precedence!(addsub, {
+            Token::And => Expression::And
+        });
         
-        let muldiv = pow.clone()
-            .then(
-                choice((
-                    op('*').to(Expression::Mul as fn(_, _) -> _),
-                    op('/').to(Expression::Div as fn(_, _) -> _),
-                    just("//").padded().to(Expression::FlDiv as fn(_, _) -> _),
-                    op('%').to(Expression::Mod as fn(_, _) -> _)
-                ))
-                .then(pow)
-                .repeated()
-            )
-            .foldl(opfold);
+        let bor = gen_parser_precedence!(band, {
+            Token::Pipe => Expression::Or
+        });
         
-        let addsub = muldiv.clone()
-            .then(
-                choice((
-                    op('+').to(Expression::Add as fn(_, _) -> _),
-                    op('-').to(Expression::Sub as fn(_, _) -> _)
-                ))
-                .then(muldiv)
-                .repeated()
-            )
-            .foldl(opfold);
-        
-        let concat = addsub.clone()
-            .then(
-                op('&')
-                .then(addsub)
-                .repeated()
-            )
-            .foldl(|lhs, (_, rhs)| Expression::Concat(Box::new(lhs), Box::new(rhs)));
-        
-        let cmp = concat.clone()
-            .then(
-                choice((
-                    op('=').to(Expression::Eq as fn(_, _) -> _),
-                    just('<').then_ignore(just('=').not().rewind()).padded().to(Expression::Lt as fn(_, _) -> _),
-                    just('>').then_ignore(just('=').not().rewind()).padded().to(Expression::Gt as fn(_, _) -> _),
-                    just("!=").padded().to(Expression::Neq as fn(_, _) -> _),
-                    just(">=").padded().to(Expression::Geq as fn(_, _) -> _),
-                    just("<=").padded().to(Expression::Leq as fn(_, _) -> _),
-                ))
-                .then(concat)
-                .repeated()
-            )
-            .foldl(opfold);
+        let cmp = gen_parser_precedence!(bor, {
+            Token::Eq => Expression::Eq,
+            Token::Neq => Expression::Neq,
+            Token::Lt => Expression::Lt,
+            Token::Leq => Expression::Leq,
+            Token::Gt => Expression::Gt,
+            Token::Geq => Expression::Geq
+        });
         
         cmp
     })
         .then_ignore(end())
+}
+
+pub fn parse(source: String) -> Result<Tagged<Expression>, Vec<Simple<Token>>> {
+    let lexer = Token::lexer(&*source);
+    
+    let tokens = lexer
+        .spanned()
+        .map(|(maybe_token, span)| match maybe_token {
+            Ok(token) => (token, span),
+            Err(_) => (Token::Error, span)
+        });
+    
+    let stream = Stream::from_iter(0..source.len(), tokens);
+    
+    parser(&source).parse(stream)
 }

@@ -1,0 +1,21 @@
+type "workspace"
+version 1
+
+name "High Seas"
+
+primary_database ref="Coolify Production"
+secondary_database {
+    name "Airtable"
+    using "airtable_provisioning_v0"
+    replicate false
+}
+
+table "People" {
+    provisioning_strategy "keep_existing"
+    alias "people"
+    
+    field "First name" {
+        type "text"
+        alias "first_name"
+    }
+}

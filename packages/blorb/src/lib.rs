@@ -1,29 +1,59 @@
 mod parser;
 
-use chumsky::Parser;
-use parser::parser;
-use pyo3::prelude::*;
+use pyo3::pymodule;
 
-/// Formats the sum of two numbers as string.
-#[pyfunction]
-fn test(a: String) -> PyResult<()> {
-    let (ast, errors) = parser().parse_recovery_verbose(a);
+#[pymodule(module = "blorb._blorb")]
+mod _blorb {
+    use pyo3::{prelude::*, IntoPyObjectExt};
+    use chumsky::{error::Simple, Parser};
+    use std::ops::Range;
+
+    use crate::parser::{Expression, parse};
     
-    if errors.len() == 0 {
-        println!("parsing raised 0 errors");
-        println!("{ast:#?}")
-    } else {
-        println!("parsing raised {} errors", errors.len());
-        println!("{errors:#?}");
-        println!("recovered AST: {ast:#?}")
+    #[pyclass]
+    struct WrappedAST {
+        inner: Expression
     }
     
-    Ok(())
-}
-
-/// A Python module implemented in Rust.
-#[pymodule]
-fn blorb(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(test, m)?)?;
-    Ok(())
+    #[pymethods]
+    impl WrappedAST {
+        fn __str__(&self) -> String {
+            format!("{:#?}", self.inner)
+        }
+    }
+    
+    #[pyclass]
+    struct WrappedCompilationError {
+        span: Range<usize>,
+        
+        #[pyo3(get)]
+        message: String
+    }
+    
+    #[pymethods]
+    impl WrappedCompilationError {
+        #[getter]
+        fn span(&self) -> (usize, usize) {
+            return (self.span.start, self.span.end)
+        }
+        
+        fn __str__(&self) -> String {
+            format!("error at {}:{}: {}", self.span.start, self.span.end, self.message)
+        }
+        
+        fn __repr__(&self) -> String {
+            format!("WrappedCompilationError(({}, {}), {})", self.span.start, self.span.end, self.message)
+        }
+    }
+    
+    #[pyfunction]
+    fn compile(py: Python, src: String) -> PyResult<PyObject> {
+        match parse(src) {
+            Ok(ast) => WrappedAST { inner: ast.inner }.into_py_any(py),
+            Err(errors) => errors.into_iter().map(|e: Simple<_>| WrappedCompilationError {
+                span: e.span(),
+                message: format!("{}", e)
+            }).collect::<Vec<WrappedCompilationError>>().into_py_any(py)
+        }
+    }
 }

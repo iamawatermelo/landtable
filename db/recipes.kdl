@@ -1,45 +1,36 @@
 version 1
-lt_version ">=0.0.1"
+type "workspace"
+
+name "High Seas"
+alias "highseas"
+alias "hs"
 
 @env "production" {
     // Databases that already exist in Landtable will be changed.
-    database "primary" {
+    // Database names will be stored in Landtable IaC state.
+    database "production-db-postgres" {
         name "Primary Database"
         
         using "postgres_v0"
         hostname "hackclub.app"
         
-        username {
-            plugin "vault"
-            path "database/creds/landtable"
-            field "secret"
-        }
+        username "sarah"
         
-        password {
-            plugin "vault"
+        /-secret_plugin using="vault_iac_userpass_v0" {
             path "database/creds/landtable"
-            field "secret"
         }
     }
     
     // You can also do this to require using an existing database,
     // for organisations that have multiple different projects using
-    // IaC but share databases.
+    // IaC but share databases for some reason.
     /-database "primary"
     
-    // Landtable can also manage your databases for you.
-    /-managed_database "primary" {
-        using "postgres_provisioning_v0"
-        hostname "hackclub.app"
-        database "landtable"
-        
-        username {
-            plugin "vault"
-            path "database/creds/landtable"
-            field "secret"
-        }
-        
-        password {
+    // Landtable can also manage your databases for you, for example if
+    // you're using a SaaS database product.
+    /-database "primary" {
+        managed "neon_pg_v0"
+        api_key {
             plugin "vault"
             path "database/creds/landtable"
             field "secret"
@@ -62,6 +53,16 @@ table "people" {
     
     @env "production" {
         allow_runtime_modification false
+        
+        secondary_config "Airtable" {
+            replicate false
+            
+            // replicate takes three variants:
+            // - false: don't replicate
+            // - true: replicate non-computed values
+            // - "computed": replicate computed values like formula fields
+            /-replicate "computed"
+        }
     }
     
     field "first_name" type="short_text"
@@ -75,12 +76,6 @@ table "people" {
             primary_config {
                 column "name"
             }
-            
-            // or configure the secondary replica
-            secondary_config "Airtable" {
-                // let's not replicate this specific field to Airtable
-                replicate false
-            }
         }
     }
     
@@ -88,6 +83,12 @@ table "people" {
     field "name" {
         type "formula"
         formula "{first_name} & \" \" & {last_name}"
+        
+        secondary_config "Airtable" {
+            // let's replicate this specific field to Airtable
+            // note that `replicate "computed"` is not necessary
+            replicate true
+        }
     }
     
     field "email" type="email"
@@ -100,6 +101,11 @@ table "people" {
         enum "glorp"
         enum "gloop"
         enum "gleep"
+        
+        primary_config {
+            // don't create a Postgres enum for frumbicated_status
+            enforce_enum false
+        }
     }
     
     // Landtable formulae can be saved in views!
