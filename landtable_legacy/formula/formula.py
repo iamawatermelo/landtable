@@ -15,9 +15,9 @@ from pydantic import ValidationInfo
 from pydantic_core import core_schema
 from pydantic_core.core_schema import CoreSchema
 
-from landtable.formula.exceptions import FormulaParseException
-from landtable.formula.lexer import lex
-from landtable.formula.parse import Parser
+from landtable_legacy.formula.exceptions import FormulaParseException
+from landtable_legacy.formula.lexer import lex
+from landtable_legacy.formula.parse import Parser
 
 
 class Formula:

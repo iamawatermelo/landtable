@@ -17,9 +17,9 @@ from typing import Optional
 from typing import Self
 from typing import Set
 
-from landtable.formula.exceptions import FormulaTypeException
-from landtable.formula.lexer import Token
-from landtable.formula.lexer import TokenType
+from landtable_legacy.formula.exceptions import FormulaTypeException
+from landtable_legacy.formula.lexer import Token
+from landtable_legacy.formula.lexer import TokenType
 
 
 class ASTType:

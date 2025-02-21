@@ -11,8 +11,8 @@ from __future__ import annotations
 from pydantic import Field
 from pydantic.dataclasses import dataclass
 
-from landtable.exceptions import BaseAPIException
-from landtable.exceptions import LandtableExceptionCode
+from landtable_legacy.exceptions import BaseAPIException
+from landtable_legacy.exceptions import LandtableExceptionCode
 
 
 @dataclass

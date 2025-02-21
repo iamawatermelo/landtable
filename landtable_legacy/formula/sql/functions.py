@@ -6,14 +6,14 @@ from typing import List
 from typing import Tuple
 from typing import TypeAlias
 
-from landtable.formula.exceptions import FormulaTypeException
-from landtable.formula.parse import ASTConcreteType
-from landtable.formula.parse import ASTNode
-from landtable.formula.parse import ASTType
-from landtable.formula.parse import ASTTypeEnvironment
-from landtable.formula.parse import Cast
-from landtable.formula.parse import FunctionCall
-from landtable.formula.parse import String
+from landtable_legacy.formula.exceptions import FormulaTypeException
+from landtable_legacy.formula.parse import ASTConcreteType
+from landtable_legacy.formula.parse import ASTNode
+from landtable_legacy.formula.parse import ASTType
+from landtable_legacy.formula.parse import ASTTypeEnvironment
+from landtable_legacy.formula.parse import Cast
+from landtable_legacy.formula.parse import FunctionCall
+from landtable_legacy.formula.parse import String
 
 
 FunctionValidator: TypeAlias = Callable[[FunctionCall, List[ASTType]], ASTType]

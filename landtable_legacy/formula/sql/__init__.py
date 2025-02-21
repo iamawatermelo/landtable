@@ -10,20 +10,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from landtable.formula.exceptions import FormulaTypeException
-from landtable.formula.formula import Formula
-from landtable.formula.lexer import TokenType
-from landtable.formula.parse import ASTConcreteType, ASTType
-from landtable.formula.parse import ASTNode
-from landtable.formula.parse import ASTTypeEnvironment
-from landtable.formula.parse import BinOp
-from landtable.formula.parse import Cast
-from landtable.formula.parse import FunctionCall
-from landtable.formula.parse import Number
-from landtable.formula.parse import String
-from landtable.formula.parse import UnOp
-from landtable.formula.parse import Variable
-from landtable.formula.sql.functions import SQL_FUNCTION_IMPLS
+from landtable_legacy.formula.exceptions import FormulaTypeException
+from landtable_legacy.formula.formula import Formula
+from landtable_legacy.formula.lexer import TokenType
+from landtable_legacy.formula.parse import ASTConcreteType, ASTType
+from landtable_legacy.formula.parse import ASTNode
+from landtable_legacy.formula.parse import ASTTypeEnvironment
+from landtable_legacy.formula.parse import BinOp
+from landtable_legacy.formula.parse import Cast
+from landtable_legacy.formula.parse import FunctionCall
+from landtable_legacy.formula.parse import Number
+from landtable_legacy.formula.parse import String
+from landtable_legacy.formula.parse import UnOp
+from landtable_legacy.formula.parse import Variable
+from landtable_legacy.formula.sql.functions import SQL_FUNCTION_IMPLS
 
 
 def _build_recurse(env: ASTTypeEnvironment, values: list[Any]):
