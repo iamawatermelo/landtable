@@ -21,6 +21,9 @@ reportUnusedImport = true
 [tool.hatch.envs.default]
 path = "./.venv/"
 
+[tool.hatch.build.targets.wheel]
+packages = ["landtable_legacy"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
