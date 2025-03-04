@@ -1,9 +1,10 @@
-use std::ops::Range;
+use std::{alloc::GlobalAlloc, ops::Range};
 use std::iter::once;
+use std::collections::BTreeMap;
 use chumsky::{error::Simple, prelude::*, primitive::custom, text::{self, TextParser}, Parser, Stream};
 use logos::{Logos, Span};
 
-#[derive(Logos, Debug, PartialEq, Copy, Clone, Hash, Eq)]
+#[derive(Logos, Debug, PartialEq, Clone, Hash, Eq)]
 #[logos(skip r"[ \t\n\f]+")]
 #[logos(skip r"#.*\n?")]
 pub enum Token {
@@ -43,7 +44,7 @@ pub enum Token {
     #[regex(r"[0-9_]+(\.[0-9_]+)?", priority = 3)]
     Number,
     
-    #[regex(r"\{\w+\}")]
+    #[regex(r"\{[^}]+\}")]
     BracketedVariable,
     
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
@@ -116,13 +117,13 @@ pub enum Token {
     #[token("!..=")]
     BtExInc,
     
-    Error,
+    Error(Box<str>),
     Eof
 }
 
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match *self {
+        match self {
             Self::Let => write!(f, "let"),
             Self::Of => write!(f, "of"),
             Self::Assign => write!(f, ":="),
@@ -160,27 +161,34 @@ impl std::fmt::Display for Token {
             Self::BtEx => write!(f, "!.."),
             Self::BtExInc => write!(f, "!..="),
 
-            Self::Error => write!(f, "[internal error]"),
+            Self::Error(x) => write!(f, "[unrecognised token {x}]"),
         }
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Tagged<T: std::fmt::Debug + PartialEq> {
     pub span: Range<usize>,
     pub inner: T
 }
 
 impl<T: std::fmt::Debug + PartialEq> Tagged<T> {
-    fn new(span: Range<usize>, inner: T) -> Tagged<T> {
+    pub fn new(span: Range<usize>, inner: T) -> Tagged<T> {
         Tagged {
             span,
             inner
         }
     }
+    
+    pub fn map<N: std::fmt::Debug + PartialEq, F: FnOnce(T) -> N>(self, f: F) -> Tagged<N> {
+        Tagged {
+            span: self.span,
+            inner: f(self.inner)
+        }
+    }
 }
 
-type Expr = Box<Tagged<Expression>>;
+pub type Expr = Box<Tagged<Expression>>;
 
 #[derive(Debug, PartialEq)]
 pub enum Pattern {
@@ -277,7 +285,7 @@ macro_rules! gen_parser_precedence {
     }
 }
 
-fn parser<'a>(source: &'a String) -> impl Parser<Token, Tagged<Expression>, Error = Simple<Token>> + use<'a> {
+fn parser<'a>(source: &'a Box<str>) -> impl Parser<Token, Tagged<Expression>, Error = Simple<Token>> + use<'a> {
     let number = just(Token::Number)
         .validate(|_, span: Span, emit| {
             match source[span.start..span.end].replace('_', "").parse::<f64>() {
@@ -354,7 +362,7 @@ fn parser<'a>(source: &'a String) -> impl Parser<Token, Tagged<Expression>, Erro
                 .then(
                     pattern
                         .then_ignore(just(Token::Arm))
-                        .then(atom.clone())
+                        .then(expr.clone())
                         .separated_by(just(Token::Separator))
                         .collect()
                 )
@@ -367,12 +375,13 @@ fn parser<'a>(source: &'a String) -> impl Parser<Token, Tagged<Expression>, Erro
                 ));
             
             let binding = variable
+                .clone()
                 .then_ignore(just(Token::Assign))
                 .then(expr.clone())
-                .map(|(var, rhs)| match var.inner {
-                    Expression::Variable(name) => (Tagged::new(var.span, name), rhs),
-                    _ => (Tagged::new(var.span, "???".into()), rhs)
-                })
+                .map(|(var, rhs)| (var.map(|inner| match inner {
+                    Expression::Variable(name) => name,
+                    _ => "???".into()
+                }), rhs))
                 .separated_by(just(Token::Separator))
                 .delimited_by(just(Token::Let), just(Token::Of))
                 .then(expr.clone())
@@ -397,10 +406,11 @@ fn parser<'a>(source: &'a String) -> impl Parser<Token, Tagged<Expression>, Erro
                 .delimited_by(just(Token::LeftParen), just(Token::RightParen));
             
             let lambda = variable
-                .map(|var| match var.inner {
-                    Expression::Variable(name) => Tagged::new(var.span, name),
-                    _ => Tagged::new(var.span, "???".into())
-                })
+                .clone()
+                .map(|var| var.map(|inner| match inner {
+                    Expression::Variable(name) => name,
+                    _ => "???".into()
+                }))
                 .separated_by(just(Token::Separator))
                 .collect()
                 .delimited_by(just(Token::Pipe), just(Token::Pipe))
@@ -466,7 +476,11 @@ fn parser<'a>(source: &'a String) -> impl Parser<Token, Tagged<Expression>, Erro
             Token::Minus => Expression::Sub
         });
         
-        let band = gen_parser_precedence!(addsub, {
+        let concat = gen_parser_precedence!(addsub, {
+            Token::Concatenate => Expression::Concat
+        });
+        
+        let band = gen_parser_precedence!(concat, {
             Token::And => Expression::And
         });
         
@@ -488,17 +502,38 @@ fn parser<'a>(source: &'a String) -> impl Parser<Token, Tagged<Expression>, Erro
         .then_ignore(end())
 }
 
-pub fn parse(source: String) -> Result<Tagged<Expression>, Vec<Simple<Token>>> {
+#[derive(Debug)]
+pub struct ParsedFormula {
+    pub source: Box<str>,
+    pub ast: Tagged<Expression>
+}
+
+pub fn parse(source: Box<str>) -> Result<ParsedFormula, Vec<Simple<Token>>> {
     let lexer = Token::lexer(&*source);
     
     let tokens = lexer
         .spanned()
         .map(|(maybe_token, span)| match maybe_token {
             Ok(token) => (token, span),
-            Err(_) => (Token::Error, span)
+            Err(_) => (Token::Error(source[span.start..span.end].into()), span)
         });
     
     let stream = Stream::from_iter(0..source.len(), tokens);
     
-    parser(&source).parse(stream)
+    let ast = parser(&source).parse(stream)?;
+    
+    Ok(ParsedFormula {
+        source,
+        ast
+    })
+}
+
+pub fn compute_line_map(source: &str) -> BTreeMap<usize, usize> {
+    source.chars()
+        .enumerate()
+        .filter(|(_, char)| *char == '\n')
+        .enumerate()
+        .map(|(lineno, (offset, _))| (offset, lineno + 2))
+        .chain(once((0, 1)))
+        .collect::<BTreeMap<usize, usize>>()
 }

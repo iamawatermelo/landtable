@@ -13,10 +13,10 @@ class ParseError(Exception):
         return f"Error while parsing:\n  - {"\n  - ".join(str(x) for x in self.inner)}"
 
 
-def parse(source: str) -> rs.WrappedAST:
+def parse(source: str) -> rs.WrappedFormula:
     result = rs.compile(source)
     
-    if isinstance(result, rs.WrappedAST):
+    if isinstance(result, rs.WrappedFormula):
         return result
     
     raise ParseError(result)

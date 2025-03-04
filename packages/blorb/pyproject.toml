@@ -9,6 +9,11 @@ classifiers = [
 dynamic = ["version"]
 python-packages = ["blorb"]
 
+[project.optional-dependencies]
+benchmark = [
+    "landtable_legacy @ git+https://github.com/iamawatermelo/landtable@df2f964221b1cbe6690ab54a464193e343603c99",
+]
+
 [build-system]
 requires = ["maturin>=1.8,<2.0"]
 build-backend = "maturin"

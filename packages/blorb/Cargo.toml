@@ -9,6 +9,9 @@ name = "blorb"
 crate-type = ["cdylib"]
 
 [dependencies]
+bitflags = "2.8.0"
 chumsky = "0.9.3"
+cranelift-codegen = "0.117.2"
 logos = "0.15.0"
 pyo3 = "0.23.3"
+thiserror = "2.0.11"

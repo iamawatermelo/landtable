@@ -158,6 +158,21 @@ From this, we have learned:
 - That let bindings have access to variables declared **before themselves**
 - That match expressions can contain expressions, not just number literals
 
+## Security
+
+Please report security-related bugs to **`security.lt.srh.dog`**, following
+the [RFC 1035](https://datatracker.ietf.org/doc/html/rfc1035#section-8)
+standard for mapping domain names to email addresses.
+
+For all other bugs, you can use the GitHub issue tracker.
+
 ## Licensing
 
 Blorb is currently licensed under the same license as Landtable.
+This may change in the future when Blorb is complete.
+
+For the avoidance of doubt, you may not:
+
+- Use Blorb in any way to provide a Landtable-like service.
+- Fork Blorb for the purposes of providing competing software to Blorb.
+  This includes transpiling Blorb to a different language.

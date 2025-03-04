@@ -71,6 +71,14 @@ wheels = [
 name = "blorb"
 source = { editable = "packages/blorb" }
 
+[package.optional-dependencies]
+benchmark = [
+    { name = "landtable-legacy" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "landtable-legacy", marker = "extra == 'benchmark'", git = "https://github.com/iamawatermelo/landtable?rev=df2f964221b1cbe6690ab54a464193e343603c99#df2f964221b1cbe6690ab54a464193e343603c99" }]
+
 [[package]]
 name = "click"
 version = "8.1.8"
@@ -263,6 +271,14 @@ requires-dist = [
     { name = "typer-slim", specifier = "~=0.15.1" },
     { name = "uvicorn", specifier = "~=0.32.1" },
     { name = "uvloop", marker = "extra == 'speedups'", specifier = "~=0.21.0" },
+]
+
+[[package]]
+name = "landtable-legacy"
+version = "0.0.1"
+source = { git = "https://github.com/iamawatermelo/landtable?rev=df2f964221b1cbe6690ab54a464193e343603c99#df2f964221b1cbe6690ab54a464193e343603c99" }
+dependencies = [
+    { name = "pydantic" },
 ]
 
 [[package]]

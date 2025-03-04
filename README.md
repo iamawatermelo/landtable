@@ -1,4 +1,4 @@
-# landtable
+# Landtable
 
 > [!NOTE]
 > Landtable is not finished. No support is available. Do not use
@@ -8,7 +8,10 @@
 ![A diagram of Landtable's architecture](docs/architecture.png)
 
 This repository houses other projects too. For their documentation, see:
-- [blorb](packages/blorb/README.md)
+
+- [blorb](packages/blorb/README.md) - formula language
+
+All subprojects are licensed under the same license as Landtable.
 
 ## What is Landtable?
 
@@ -230,13 +233,29 @@ Fetched 1 record:
 ## Licensing
 
 Landtable is not open source software. Landtable is licensed under the
-Polyform Perimeter license. This means that you may not fork Landtable.
+Polyform Perimeter license. This means that you may not fork Landtable to start
+a new project.
 
-This may change in the future.
+For the avoidance of doubt, you may not:
+
+- Fork Landtable, or its subprojects, for the purposes of creating a
+  Landtable-like service. This includes transpiling Landtable to a different
+  language, or basing your project on its code. This condition may change
+  in the future.
+- Sell Landtable "as a service".
+
+You may, however, use Landtable's and its subprojects' code for anything else.
+
+## Security
+
+Please report security-related bugs for Landtable or any subprojects to
+**`security.lt.srh.dog`**, following the [RFC 1035](https://datatracker.ietf.org/doc/html/rfc1035#section-8)
+standard for mapping domain names to email addresses.
+
+For all other bugs, you can use the GitHub issue tracker.
 
 ## Contributors
 
 Thank you to:
 - [Captainexpo-1](https://github.com/Captainexpo-1) for writing
-  [an initial version of the Landtable formula parser](https://github.com/Captainexpo-1/Formula-Parser)
-  (and agreeing to license the software under Landtable's license)
+  [an initial version of the Landtable formula parser](https://github.com/Captainexpo-1/Formula-Parser).
